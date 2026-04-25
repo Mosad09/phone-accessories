@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbzDedo7ei48ZCJgxP23Ne4JIOAs6wz95kql_ki5XLUWJMWBV0GGy3CE9Hum4kV_cWTXgw/exec";
+const API_URL = "/api/orders";
 
 export const syncUser = async (user) => {
   if (!user) return null;
@@ -37,6 +37,7 @@ export const createOrder = async (orderData) => {
   
   const res = await fetch(API_URL, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
   
