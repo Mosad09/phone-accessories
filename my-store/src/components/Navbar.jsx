@@ -16,7 +16,8 @@ function Navbar({
   onToggleFilters,
   isMobile,
   user,
-  dbUser
+  dbUser,
+  navigate
 }) {
   const [inputValue, setInputValue] = useState(search || "");
   const [suggestions, setSuggestions] = useState([]);
@@ -140,7 +141,7 @@ function Navbar({
     <nav className="navbar navbar-expand-lg navbar-custom py-3">
       <div className="container flex-wrap">
         {/* Brand */}
-        <a className="navbar-brand d-flex align-items-center fw-bold fs-4" href="#">
+        <a className="navbar-brand d-flex align-items-center fw-bold fs-4" href="#" onClick={(e) => { e.preventDefault(); navigate("home"); }}>
           <i className="bi bi-layers-fill text-primary-custom me-2"></i>
           My<span className="text-primary-custom">Store</span>
         </a>
@@ -244,11 +245,14 @@ function Navbar({
               </button>
               {showUserMenu && (
                 <div className="dropdown-menu dropdown-menu-end shadow-sm show" style={{ position: "absolute", right: 0, top: "100%", marginTop: "0.5rem" }}>
-                  <a className="dropdown-item py-2" href="#!">
+                  <button className="dropdown-item py-2" onClick={() => { navigate("orders"); setShowUserMenu(false); }}>
                     <i className="bi bi-box-seam me-2"></i>My Orders
-                  </a>
+                  </button>
+                  <button className="dropdown-item py-2" onClick={() => { navigate("profile"); setShowUserMenu(false); }}>
+                    <i className="bi bi-person me-2"></i>Profile
+                  </button>
                   <hr className="dropdown-divider" />
-                  <button className="dropdown-item py-2 text-danger" onClick={() => { logout(); setShowUserMenu(false); }}>
+                  <button className="dropdown-item py-2 text-danger" onClick={() => { logout(); setShowUserMenu(false); navigate("home"); }}>
                     <i className="bi bi-box-arrow-right me-2"></i>Logout
                   </button>
                 </div>

@@ -1,4 +1,4 @@
-function Cart({ cart, updateQuantity, removeFromCart, closeCart, totalPrice }) {
+function Cart({ cart, updateQuantity, removeFromCart, closeCart, totalPrice, handleCheckout }) {
   return (
     <>
       <div className="cart-overlay" onClick={closeCart}></div>
@@ -73,7 +73,7 @@ function Cart({ cart, updateQuantity, removeFromCart, closeCart, totalPrice }) {
               <span className="text-muted-custom">Subtotal</span>
               <span className="fw-bold text-main">{totalPrice} EGP</span>
             </div>
-            <button className="btn btn-primary-custom w-100 py-2 fs-6">
+            <button className="btn btn-primary-custom w-100 py-2 fs-6" onClick={handleCheckout}>
               Proceed to Checkout
             </button>
           </div>

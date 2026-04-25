@@ -12,6 +12,9 @@ import { filterAndSort } from "./utils/searchEngine";
 import Papa from "papaparse";
 import { auth } from "./utils/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import Profile from "./components/Profile";
+import Orders from "./components/Orders";
+import { syncUser, createOrder } from "./services/db";
 function App() {
   // ================= STATE =================
   const [products, setProducts] = useState([]);
@@ -20,6 +23,7 @@ function App() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [user, setUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
+  const [currentPage, setCurrentPage] = useState("home");
 
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem("cart");
@@ -43,9 +47,16 @@ function App() {
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        setDbUser({ name: currentUser.displayName, email: currentUser.email });
+        try {
+          const syncedUser = await syncUser(currentUser);
+          setDbUser(syncedUser);
+        } catch (err) {
+          console.error("Error syncing user:", err);
+          setDbUser({ name: currentUser.displayName, email: currentUser.email });
+        }
       } else {
         setDbUser(null);
+        setCurrentPage("home");
       }
     });
     return unsub;
@@ -162,6 +173,40 @@ function App() {
     return cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   }, [cart]);
 
+  const handleCheckout = async () => {
+    if (!user) {
+      alert("Please sign in to place an order.");
+      return;
+    }
+    if (!dbUser?.address || !dbUser?.phone) {
+      alert("Please update your profile with your delivery address and phone number before checking out.");
+      setShowCart(false);
+      setCurrentPage("profile");
+      return;
+    }
+
+    try {
+      const orderData = {
+        userId: user.uid,
+        userName: dbUser.name,
+        email: dbUser.email,
+        phone: dbUser.phone,
+        address: dbUser.address,
+        items: cart,
+        totalPrice: totalPrice
+      };
+      
+      await createOrder(orderData);
+      setCart([]);
+      setShowCart(false);
+      setCurrentPage("orders");
+      alert("Order placed successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to place order. Please try again.");
+    }
+  };
+
   // ================= FILTER HANDLERS =================
   const handleCategoryToggle = useCallback(
     (cat) => {
@@ -254,6 +299,7 @@ function App() {
         isMobile={isMobile}
         user={user}
         dbUser={dbUser}
+        navigate={setCurrentPage}
       />
 
       {/* CART DRAWER */}
@@ -264,10 +310,16 @@ function App() {
           removeFromCart={removeFromCart}
           closeCart={() => setShowCart(false)}
           totalPrice={totalPrice}
+          handleCheckout={handleCheckout}
         />
       )}
 
-      <div className="container mt-4">
+      {currentPage === "profile" ? (
+        <Profile user={user} dbUser={dbUser} setDbUser={setDbUser} />
+      ) : currentPage === "orders" ? (
+        <Orders user={user} navigate={setCurrentPage} />
+      ) : (
+        <div className="container mt-4">
         {/* HERO SECTION */}
         {!hasActiveFilters && (
           <div className="hero-section text-center px-4">
@@ -388,6 +440,7 @@ function App() {
           </main>
         </div>
       </div>
+      )}
     </div>
   );
 }

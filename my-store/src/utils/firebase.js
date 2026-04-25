@@ -1,5 +1,6 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 console.log("[Firebase] Initializing Firebase...");
 
@@ -17,6 +18,7 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+const db = getFirestore(app);
 
 console.log("[Firebase] Initialization complete.");
 
@@ -40,4 +42,4 @@ export const logout = () => {
   console.log("[Auth] User signing out...");
   return signOut(auth);
 };
-export { auth };
+export { auth, db };
