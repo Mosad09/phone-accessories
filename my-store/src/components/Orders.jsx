@@ -65,23 +65,34 @@ function Orders({ user, navigate }) {
     <div className="container py-5">
       <h2 className="mb-4 fw-bold">My Orders</h2>
       <div className="row">
-        {orders.map((order) => (
-          <div key={order.id} className="col-12 mb-4">
+        {orders.map((order, idx) => {
+          const items = typeof order.items === 'string' ? JSON.parse(order.items || "[]") : (order.items || []);
+          const status = (order.status || "pending").toLowerCase();
+          
+          let badgeClass = "bg-secondary";
+          if (status === "pending") badgeClass = "bg-warning text-dark";
+          if (status === "processing") badgeClass = "bg-info text-dark";
+          if (status === "shipped") badgeClass = "bg-primary";
+          if (status === "delivered") badgeClass = "bg-success";
+          if (status === "cancelled") badgeClass = "bg-danger";
+
+          return (
+          <div key={order.createdAt || idx} className="col-12 mb-4">
             <div className="card shadow-sm border-0">
               <div className="card-header bg-light d-flex justify-content-between align-items-center py-3 border-0">
                 <div>
                   <span className="text-muted-custom d-block" style={{ fontSize: "0.85rem" }}>Order ID</span>
-                  <span className="fw-semibold">{order.id}</span>
+                  <span className="fw-semibold">{order.id || `ORD-${new Date(order.createdAt).getTime().toString().slice(-6)}`}</span>
                 </div>
                 <div className="text-end">
-                  <span className={`badge ${order.status === 'pending' ? 'bg-warning text-dark' : 'bg-success'} px-3 py-2 rounded-pill`}>
-                    {order.status.toUpperCase()}
+                  <span className={`badge ${badgeClass} px-3 py-2 rounded-pill`}>
+                    {status.toUpperCase()}
                   </span>
                 </div>
               </div>
               <div className="card-body">
-                {order.items.map((item, idx) => (
-                  <div key={idx} className="d-flex align-items-center mb-3 pb-3 border-bottom border-light">
+                {items.map((item, itemIdx) => (
+                  <div key={itemIdx} className="d-flex align-items-center mb-3 pb-3 border-bottom border-light">
                     <img src={item.image} alt={item.name} width="50" height="50" className="rounded object-fit-cover me-3" />
                     <div className="flex-grow-1">
                       <h6 className="mb-1">{item.name}</h6>
@@ -108,7 +119,8 @@ function Orders({ user, navigate }) {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

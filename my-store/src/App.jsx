@@ -24,6 +24,8 @@ function App() {
   const [user, setUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
   const [currentPage, setCurrentPage] = useState("home");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutToast, setCheckoutToast] = useState(null);
 
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem("cart");
@@ -100,6 +102,14 @@ function App() {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
+  // ================= TOAST TIMEOUT =================
+  useEffect(() => {
+    if (checkoutToast) {
+      const timer = setTimeout(() => setCheckoutToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [checkoutToast]);
+
   // ================= DERIVED DATA =================
   const categories = useMemo(() => {
     return [...new Set(products.map((p) => p.category).filter(Boolean))];
@@ -174,6 +184,8 @@ function App() {
   }, [cart]);
 
   const handleCheckout = async () => {
+    if (isSubmitting) return;
+
     if (!user) {
       alert("Please sign in to place an order.");
       return;
@@ -190,6 +202,7 @@ function App() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const orderData = {
         userId: user.uid,
@@ -205,10 +218,12 @@ function App() {
       setCart([]);
       setShowCart(false);
       setCurrentPage("orders");
-      alert("Order placed successfully!");
+      setCheckoutToast({ type: 'success', message: "Order placed successfully" });
     } catch (err) {
       console.error(err);
-      alert("Failed to place order. Please try again.");
+      setCheckoutToast({ type: 'error', message: "Something went wrong" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -316,8 +331,14 @@ function App() {
           closeCart={() => setShowCart(false)}
           totalPrice={totalPrice}
           handleCheckout={handleCheckout}
+          isSubmitting={isSubmitting}
         />
       )}
+
+      {/* CHECKOUT TOAST */}
+      <div className={`cart-toast ${checkoutToast ? "show" : ""} ${checkoutToast?.type === 'error' ? "bg-danger" : ""}`}>
+        {checkoutToast?.message} {checkoutToast?.type === 'success' ? "✅" : "❌"}
+      </div>
 
       {currentPage === "profile" ? (
         <Profile user={user} dbUser={dbUser} setDbUser={setDbUser} />

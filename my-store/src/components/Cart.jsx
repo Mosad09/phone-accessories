@@ -1,4 +1,4 @@
-function Cart({ cart, updateQuantity, removeFromCart, closeCart, totalPrice, handleCheckout }) {
+function Cart({ cart, updateQuantity, removeFromCart, closeCart, totalPrice, handleCheckout, isSubmitting }) {
   return (
     <>
       <div className="cart-overlay" onClick={closeCart}></div>
@@ -73,8 +73,17 @@ function Cart({ cart, updateQuantity, removeFromCart, closeCart, totalPrice, han
               <span className="text-muted-custom">Subtotal</span>
               <span className="fw-bold text-main">{totalPrice} EGP</span>
             </div>
-            <button className="btn btn-primary-custom w-100 py-2 fs-6" onClick={handleCheckout}>
-              Proceed to Checkout
+            <button 
+              className="btn btn-primary-custom w-100 py-2 fs-6" 
+              onClick={handleCheckout}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Processing...
+                </>
+              ) : "Proceed to Checkout"}
             </button>
           </div>
         )}
