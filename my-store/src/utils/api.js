@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Default backend URL
-const API_URL = "http://localhost:5000";
+const API_URL = "https://script.google.com/macros/s/XXXX/exec";
 
 const api = axios.create({
   baseURL: API_URL,
