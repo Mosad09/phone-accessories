@@ -49,8 +49,8 @@ export const getUserOrders = async (uid) => {
   
   // Sort on client side to avoid composite index error
   return orders.sort((a, b) => {
-    const timeA = a.createdAt?.toMillis() || 0;
-    const timeB = b.createdAt?.toMillis() || 0;
+    const timeA = typeof a.createdAt?.toMillis === 'function' ? a.createdAt.toMillis() : 0;
+    const timeB = typeof b.createdAt?.toMillis === 'function' ? b.createdAt.toMillis() : 0;
     return timeB - timeA;
   });
 };

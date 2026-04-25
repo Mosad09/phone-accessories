@@ -2,11 +2,32 @@ import { useState, useEffect } from "react";
 import { updateUserProfile, getUserProfile } from "../services/db";
 
 const EGYPT_LOCATIONS = {
-  "Cairo": ["Nasr City", "New Cairo", "Maadi", "Heliopolis", "Downtown", "Zamalek", "Shoubra"],
-  "Giza": ["6th of October", "Sheikh Zayed", "Dokki", "Mohandeseen", "Haram", "Faisal"],
-  "Alexandria": ["Smouha", "Sidi Gaber", "Gleem", "Miami", "Mandara", "Agami"],
-  "Dakahlia": ["Mansoura", "Talkha", "Mit Ghamr"],
-  "Red Sea": ["Hurghada", "El Gouna", "Safaga"],
+  "Cairo": ["Nasr City", "New Cairo", "Maadi", "Heliopolis", "Downtown", "Zamalek", "Shoubra", "Rehab", "Madinaty", "Mokattam"],
+  "Giza": ["6th of October", "Sheikh Zayed", "Dokki", "Mohandeseen", "Haram", "Faisal", "Imbaba", "Agouza"],
+  "Alexandria": ["Smouha", "Sidi Gaber", "Gleem", "Miami", "Mandara", "Agami", "Borg El Arab", "Montaza"],
+  "Dakahlia": ["Mansoura", "Talkha", "Mit Ghamr", "Dekernes", "Aga"],
+  "Red Sea": ["Hurghada", "El Gouna", "Safaga", "Marsa Alam", "Ras Gharib"],
+  "Beheira": ["Damanhour", "Kafr El Dawwar", "Rashid", "Edku"],
+  "Gharbia": ["Tanta", "El Mahalla El Kubra", "Zifta", "Kafr El Zayat"],
+  "Kafr El Sheikh": ["Kafr El Sheikh", "Desouk", "Baltim", "Metoubes"],
+  "Monufia": ["Shibin El Kom", "Sadat City", "Menouf", "Ashmoun"],
+  "Qalyubia": ["Banha", "Shubra El Kheima", "Qalyub", "El Obour"],
+  "Sharqia": ["Zagazig", "10th of Ramadan", "Minya El Qamh", "Belbeis"],
+  "Ismailia": ["Ismailia", "Fayed", "Qantara"],
+  "Port Said": ["Port Said", "Port Fouad"],
+  "Suez": ["Suez", "Ain Sokhna"],
+  "South Sinai": ["Sharm El Sheikh", "Dahab", "Nuweiba", "Toor Sinai"],
+  "North Sinai": ["Arish", "Rafah", "Bir al-Abed"],
+  "Beni Suef": ["Beni Suef", "Nasser", "Biba"],
+  "Faiyum": ["Faiyum", "Senooris", "Ibsheway"],
+  "Minya": ["Minya", "Mallawi", "Samalut", "Beni Mazar"],
+  "Asyut": ["Asyut", "Dairut", "Manfalut", "Abnub"],
+  "Sohag": ["Sohag", "Akhmim", "Girga", "Tahta"],
+  "Qena": ["Qena", "Nag Hammadi", "Qus", "Dishna"],
+  "Luxor": ["Luxor", "Esna", "Armant"],
+  "Aswan": ["Aswan", "Edfu", "Kom Ombo", "Daraw"],
+  "New Valley": ["Kharga", "Dakhla", "Farafra"],
+  "Matrouh": ["Marsa Matrouh", "El Alamein", "Siwa", "Sidi Abdel Rahman"],
   "Other": []
 };
 

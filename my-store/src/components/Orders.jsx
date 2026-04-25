@@ -16,12 +16,13 @@ function Orders({ user, navigate }) {
 
   const fetchOrders = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await getUserOrders(user.uid);
       setOrders(data);
     } catch (err) {
-      console.error(err);
-      setError("Failed to load orders.");
+      console.error("fetchOrders Error:", err);
+      setError(err.message || "Failed to load orders.");
     }
     setLoading(false);
   };
