@@ -13,6 +13,7 @@
     "axios": "^1.15.2",
     "firebase": "^12.12.1",
     "nouislider": "^15.8.1",
+    "papaparse": "^5.5.3",
     "puppeteer": "^24.42.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

@@ -9,7 +9,7 @@ import ActiveFilters from "./components/ActiveFilters";
 import Pagination from "./components/Pagination";
 import useUrlState from "./hooks/useUrlState";
 import { filterAndSort } from "./utils/searchEngine";
-import api from "./utils/api";
+import Papa from "papaparse";
 import { auth } from "./utils/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 function App() {
@@ -43,16 +43,8 @@ function App() {
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        const token = await currentUser.getIdToken();
-        localStorage.setItem("token", token);
-        try {
-          const res = await api.post("/auth/login", { name: currentUser.displayName });
-          setDbUser(res.data.user);
-        } catch (error) {
-          console.error("Auth error", error);
-        }
+        setDbUser({ name: currentUser.displayName, email: currentUser.email });
       } else {
-        localStorage.removeItem("token");
         setDbUser(null);
       }
     });
@@ -60,15 +52,31 @@ function App() {
   }, []);
 
   // ================= FETCH =================
-  const fetchData = async () => {
+  const fetchData = () => {
     setLoading(true);
-    try {
-      const res = await api.get("/");
-      setProducts(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-    setLoading(false);
+    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQoSuf820fkc_ob9BS2_zhqJhlwT7pk-2Zlb_S_CWZHqlKI_S7FV_TaBDS_u5ce8qa85mW0sea92BJ_/pub?output=csv";
+    
+    Papa.parse(csvUrl, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const parsedProducts = results.data.map((item, index) => ({
+          id: item.id || `product-${index}`,
+          name: item["Product Name"],
+          price: parseFloat(item["Price"]) || 0,
+          image: item["Image"],
+          category: item["category"],
+          details: item["Details"],
+        }));
+        setProducts(parsedProducts);
+        setLoading(false);
+      },
+      error: (err) => {
+        console.error("CSV Parse Error:", err);
+        setLoading(false);
+      },
+    });
   };
 
   useEffect(() => {
