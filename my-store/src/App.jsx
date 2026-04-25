@@ -63,7 +63,7 @@ function App() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/products");
+      const res = await api.get("/");
       setProducts(res.data);
     } catch (err) {
       console.error(err);
