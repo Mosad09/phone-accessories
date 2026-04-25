@@ -7,24 +7,27 @@ function Orders({ user, navigate }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let interval;
     if (user) {
-      fetchOrders();
+      fetchOrders(false);
+      interval = setInterval(() => fetchOrders(true), 5000);
     } else {
       setLoading(false);
     }
+    return () => clearInterval(interval);
   }, [user]);
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  const fetchOrders = async (isPolling = false) => {
+    if (!isPolling) setLoading(true);
     setError(null);
     try {
-      const data = await getUserOrders(user.uid);
+      const data = await getUserOrders(user.email);
       setOrders(data);
     } catch (err) {
       console.error("fetchOrders Error:", err);
-      setError(err.message || "Failed to load orders.");
+      if (!isPolling) setError(err.message || "Failed to load orders.");
     }
-    setLoading(false);
+    if (!isPolling) setLoading(false);
   };
 
   if (!user) {
@@ -94,7 +97,7 @@ function Orders({ user, navigate }) {
                   <div>
                     <span className="text-muted-custom d-block" style={{ fontSize: "0.85rem" }}>Date Placed</span>
                     <span className="fw-medium">
-                      {order.createdAt ? new Date(order.createdAt.toMillis()).toLocaleDateString() : "Just now"}
+                      {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "Just now"}
                     </span>
                   </div>
                   <div className="text-end">

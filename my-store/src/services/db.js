@@ -1,56 +1,57 @@
-import { db } from "../utils/firebase";
-import { doc, getDoc, setDoc, collection, addDoc, query, where, getDocs, serverTimestamp } from "firebase/firestore";
+const API_URL = "https://script.google.com/macros/s/AKfycbzDedo7ei48ZCJgxP23Ne4JIOAs6wz95kql_ki5XLUWJMWBV0GGy3CE9Hum4kV_cWTXgw/exec";
 
 export const syncUser = async (user) => {
   if (!user) return null;
-  const userRef = doc(db, "users", user.uid);
-  const snap = await getDoc(userRef);
-  if (!snap.exists()) {
-    const newUser = {
-      name: user.displayName || "Unknown User",
-      email: user.email || "",
-      address: "",
-      phone: "",
-      createdAt: serverTimestamp(),
-    };
-    await setDoc(userRef, newUser);
-    return newUser;
+  const storedProfile = localStorage.getItem(`profile_${user.uid}`);
+  if (storedProfile) {
+    return JSON.parse(storedProfile);
   }
-  return snap.data();
+  const newUser = {
+    name: user.displayName || "Unknown User",
+    email: user.email || "",
+    address: "",
+    phone: "",
+    createdAt: new Date().toISOString(),
+  };
+  localStorage.setItem(`profile_${user.uid}`, JSON.stringify(newUser));
+  return newUser;
 };
 
 export const getUserProfile = async (uid) => {
-  const userRef = doc(db, "users", uid);
-  const snap = await getDoc(userRef);
-  return snap.exists() ? snap.data() : null;
+  const storedProfile = localStorage.getItem(`profile_${uid}`);
+  return storedProfile ? JSON.parse(storedProfile) : null;
 };
 
 export const updateUserProfile = async (uid, data) => {
-  const userRef = doc(db, "users", uid);
-  await setDoc(userRef, data, { merge: true });
+  const storedProfile = localStorage.getItem(`profile_${uid}`) ? JSON.parse(localStorage.getItem(`profile_${uid}`)) : {};
+  const updated = { ...storedProfile, ...data };
+  localStorage.setItem(`profile_${uid}`, JSON.stringify(updated));
 };
 
 export const createOrder = async (orderData) => {
-  const ordersRef = collection(db, "orders");
-  const newOrder = {
+  const payload = {
     ...orderData,
     status: "pending",
-    createdAt: serverTimestamp(),
+    createdAt: new Date().toISOString()
   };
-  const docRef = await addDoc(ordersRef, newOrder);
-  return docRef.id;
+  
+  const res = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  
+  if (!res.ok) {
+    throw new Error("Failed to place order.");
+  }
+  
+  return "order_placed";
 };
 
-export const getUserOrders = async (uid) => {
-  const ordersRef = collection(db, "orders");
-  const q = query(ordersRef, where("userId", "==", uid));
-  const snap = await getDocs(q);
-  const orders = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+export const getUserOrders = async (email) => {
+  if (!email) return [];
+  const res = await fetch(`${API_URL}?email=${encodeURIComponent(email)}`);
+  if (!res.ok) throw new Error("Failed to load orders from server.");
+  const data = await res.json();
   
-  // Sort on client side to avoid composite index error
-  return orders.sort((a, b) => {
-    const timeA = typeof a.createdAt?.toMillis === 'function' ? a.createdAt.toMillis() : 0;
-    const timeB = typeof b.createdAt?.toMillis === 'function' ? b.createdAt.toMillis() : 0;
-    return timeB - timeA;
-  });
+  return (data || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 };
