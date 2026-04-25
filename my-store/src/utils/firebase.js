@@ -1,30 +1,43 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 
-// TODO: Replace with your Firebase project config
+console.log("[Firebase] Initializing Firebase...");
+
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  projectId: "my-store-6a861",
+  appId: "1:562504670976:web:7239c138556bb7346b9de5",
+  storageBucket: "my-store-6a861.firebasestorage.app",
+  apiKey: "AIzaSyCPiBojeZPe_NGE_aqYG4We2yLD6tdzIRU",
+  authDomain: "my-store-6a861.firebaseapp.com",
+  messagingSenderId: "562504670976",
+  measurementId: "G-FNKZB3R289"
 };
 
-const app = initializeApp(firebaseConfig);
+// Prevent duplicate initialization
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+console.log("[Firebase] Initialization complete.");
+
 export const loginWithGoogle = async () => {
   try {
+    console.log("[Auth] Starting Google Sign-In...");
     const result = await signInWithPopup(auth, provider);
     const token = await result.user.getIdToken();
+    console.log("[Auth] Google Sign-In successful!", {
+      uid: result.user.uid,
+      email: result.user.email
+    });
     return { user: result.user, token };
   } catch (error) {
-    console.error("Google Login Error:", error);
+    console.error("[Auth] Google Sign-In Error:", error.code, error.message);
     throw error;
   }
 };
 
-export const logout = () => signOut(auth);
+export const logout = () => {
+  console.log("[Auth] User signing out...");
+  return signOut(auth);
+};
 export { auth };
