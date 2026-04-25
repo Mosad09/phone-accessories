@@ -88,15 +88,6 @@ function ProductCard({ product, addToCart }) {
             </div>
           )}
 
-          {/* View Details Button (mobile fallback + desktop) */}
-          <button
-            className="view-details-btn"
-            onClick={toggleDetails}
-            aria-label="View product details"
-          >
-            <i className={`bi ${showDetails ? "bi-eye-slash" : "bi-eye"}`}></i>
-            {showDetails ? " Hide Details" : " View Details"}
-          </button>
 
           <div className="mt-auto d-flex align-items-center justify-content-between pt-3 price-row">
             <span className="product-price mb-0">EGP {formatPrice(product.price)}</span>

@@ -49,9 +49,9 @@ function Orders({ user, navigate }) {
       <div className="container py-5 text-center">
         <i className="bi bi-box-seam text-muted-custom" style={{ fontSize: "4rem" }}></i>
         <h3 className="mt-3 text-muted-custom">No orders yet</h3>
-        <p className="opacity-75 mb-4">Looks like you haven't made your first order.</p>
+        <p className="opacity-75 mb-4">You haven’t placed any orders yet. Start exploring our products.</p>
         <button className="btn btn-primary-custom px-4 py-2" onClick={() => navigate("home")}>
-          Start Shopping
+          Browse Products
         </button>
       </div>
     );
@@ -88,7 +88,7 @@ function Orders({ user, navigate }) {
                     </div>
                   </div>
                 ))}
-                
+
                 <div className="d-flex justify-content-between align-items-center mt-4">
                   <div>
                     <span className="text-muted-custom d-block" style={{ fontSize: "0.85rem" }}>Date Placed</span>

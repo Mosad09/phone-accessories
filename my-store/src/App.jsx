@@ -178,7 +178,12 @@ function App() {
       alert("Please sign in to place an order.");
       return;
     }
-    if (!dbUser?.address || !dbUser?.phone) {
+
+    const hasAddress = typeof dbUser?.address === 'object' 
+      ? (dbUser.address.governorate && dbUser.address.city && dbUser.address.detail)
+      : !!dbUser?.address;
+
+    if (!hasAddress || !dbUser?.phone) {
       alert("Please update your profile with your delivery address and phone number before checking out.");
       setShowCart(false);
       setCurrentPage("profile");
