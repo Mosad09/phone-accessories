@@ -1,5 +1,10 @@
 import React from "react";
 
+function formatPrice(price) {
+  if (!price && price !== 0) return "0";
+  return Number(price).toLocaleString("en-EG");
+}
+
 function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, handleCheckout, isSubmitting, navigate }) {
   return (
     <div className="container mt-4 mb-5">
@@ -40,7 +45,7 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, handleChec
                           <h6 className="mb-1 text-truncate" title={item.name}>
                             {item.name}
                           </h6>
-                          <div className="text-primary-custom fw-bold">{item.price} EGP</div>
+                          <div className="text-primary-custom fw-bold">{formatPrice(item.price)} EGP</div>
                         </div>
                         <div className="col-12 col-md-auto mt-3 mt-md-0 d-flex align-items-center justify-content-between gap-4">
                           <div className="qty-controls d-flex align-items-center border rounded px-2 py-1">
@@ -81,12 +86,12 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, handleChec
                 <h5 className="fw-bold mb-4">Order Summary</h5>
                 <div className="d-flex justify-content-between mb-3">
                   <span className="text-muted-custom">Subtotal ({cart.reduce((acc, curr) => acc + curr.qty, 0)} items)</span>
-                  <span className="fw-semibold">{totalPrice} EGP</span>
+                  <span className="fw-semibold">{formatPrice(totalPrice)} EGP</span>
                 </div>
                 <hr className="my-3 opacity-25" />
                 <div className="d-flex justify-content-between mb-4 fs-5">
                   <span className="fw-bold">Total</span>
-                  <span className="fw-bold text-primary-custom">{totalPrice} EGP</span>
+                  <span className="fw-bold text-primary-custom">{formatPrice(totalPrice)} EGP</span>
                 </div>
                 <button
                   className="btn btn-primary-custom w-100 py-3 rounded-3 fw-bold shadow-sm"

@@ -8,9 +8,9 @@ function toProperCase(str) {
 
 function Navbar({
   cartCount,
+  wishlistCount,
   search,
   onSearchChange,
-  toggleCart,
   cartPulse,
   products,
   onToggleFilters,
@@ -219,8 +219,18 @@ function Navbar({
             )}
           </div>
 
+          {/* Wishlist */}
+          <button className="cart-btn-nav" onClick={() => navigate("wishlist")} aria-label="Wishlist">
+            <i className="bi bi-heart fs-5"></i>
+            {wishlistCount > 0 && (
+              <span className="cart-badge bg-danger">
+                {wishlistCount}
+              </span>
+            )}
+          </button>
+
           {/* Cart */}
-          <button className="cart-btn-nav" onClick={toggleCart} aria-label="Cart">
+          <button className="cart-btn-nav" onClick={() => navigate("cart")} aria-label="Cart">
             <i className="bi bi-bag fs-5"></i>
             {cartCount > 0 && (
               <span className={`cart-badge ${cartPulse ? "pulse-anim" : ""}`}>

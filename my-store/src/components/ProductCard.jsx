@@ -16,23 +16,29 @@ function formatPrice(price) {
   return Number(price).toLocaleString("en-EG");
 }
 
-function ProductCard({ product, addToCart }) {
+function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
   const [showDetails, setShowDetails] = useState(false);
-  const [toast, setToast] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: "" });
   const cardRef = useRef(null);
 
   // Auto-hide toast after 2s
   useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(false), 2000);
+    if (toast.show) {
+      const timer = setTimeout(() => setToast({ show: false, message: "" }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [toast]);
+  }, [toast.show]);
 
   const handleAddToCart = (e) => {
     e.stopPropagation();
     addToCart(product);
-    setToast(true);
+    setToast({ show: true, message: "Added to cart ✅" });
+  };
+
+  const handleAddToWishlist = (e) => {
+    e.stopPropagation();
+    addToWishlist(product);
+    setToast({ show: true, message: "Added to wishlist ❤️" });
   };
 
   const toggleDetails = () => {
@@ -91,19 +97,29 @@ function ProductCard({ product, addToCart }) {
 
           <div className="mt-auto d-flex align-items-center justify-content-between pt-3 price-row">
             <span className="product-price mb-0">EGP {formatPrice(product.price)}</span>
-            <button
-              className="btn btn-primary-custom add-btn-sm"
-              onClick={handleAddToCart}
-              title="Add to Cart"
-            >
-              <i className="bi bi-cart-plus"></i>
-            </button>
+            <div className="d-flex gap-2">
+              <button
+                className={`btn ${isInWishlist ? "btn-danger" : "btn-outline-danger"} add-btn-sm border-0`}
+                onClick={handleAddToWishlist}
+                title={isInWishlist ? "Already in Wishlist" : "Add to Wishlist"}
+                disabled={isInWishlist}
+              >
+                <i className={`bi ${isInWishlist ? "bi-heart-fill" : "bi-heart"}`}></i>
+              </button>
+              <button
+                className="btn btn-primary-custom add-btn-sm"
+                onClick={handleAddToCart}
+                title="Add to Cart"
+              >
+                <i className="bi bi-cart-plus"></i>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Toast Notification */}
-        <div className={`cart-toast ${toast ? "show" : ""}`}>
-          Added to cart ✅
+        <div className={`cart-toast ${toast.show ? "show" : ""}`}>
+          {toast.message}
         </div>
       </div>
     </div>

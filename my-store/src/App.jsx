@@ -3,7 +3,8 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 import Navbar from "./components/Navbar";
 import ProductCard from "./components/ProductCard";
-import Cart from "./components/Cart";
+import CartPage from "./components/CartPage";
+import WishlistPage from "./components/WishlistPage";
 import FilterSidebar from "./components/FilterSidebar";
 import ActiveFilters from "./components/ActiveFilters";
 import Pagination from "./components/Pagination";
@@ -29,6 +30,11 @@ function App() {
 
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem("cart");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [wishlist, setWishlist] = useState(() => {
+    const saved = localStorage.getItem("wishlist");
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -97,10 +103,14 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ================= SAVE CART =================
+  // ================= SAVE CART & WISHLIST =================
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
+
+  useEffect(() => {
+    localStorage.setItem("wishlist", JSON.stringify(wishlist));
+  }, [wishlist]);
 
   // ================= TOAST TIMEOUT =================
   useEffect(() => {
@@ -183,6 +193,19 @@ function App() {
     return cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   }, [cart]);
 
+  // ================= WISHLIST LOGIC =================
+  const addToWishlist = (product) => {
+    setWishlist((prev) => {
+      const exists = prev.find((p) => p.id === product.id);
+      if (exists) return prev;
+      return [...prev, product];
+    });
+  };
+
+  const removeFromWishlist = (id) => {
+    setWishlist((prev) => prev.filter((p) => p.id !== id));
+  };
+
   const handleCheckout = async () => {
     if (isSubmitting) return;
 
@@ -197,7 +220,6 @@ function App() {
 
     if (!hasAddress || !dbUser?.phone) {
       alert("Please update your profile with your delivery address and phone number before checking out.");
-      setShowCart(false);
       setCurrentPage("profile");
       return;
     }
@@ -216,7 +238,6 @@ function App() {
       
       await createOrder(orderData);
       setCart([]);
-      setShowCart(false);
       setCurrentPage("orders");
       setCheckoutToast({ type: 'success', message: "Order placed successfully" });
     } catch (err) {
@@ -310,9 +331,9 @@ function App() {
       {/* NAVBAR */}
       <Navbar
         cartCount={cart.reduce((sum, item) => sum + item.qty, 0)}
+        wishlistCount={wishlist.length}
         search={filters.search}
         onSearchChange={handleSearchChange}
-        toggleCart={() => setShowCart(!showCart)}
         cartPulse={cartPulse}
         products={products}
         onToggleFilters={() => setShowMobileFilters(!showMobileFilters)}
@@ -322,28 +343,27 @@ function App() {
         navigate={setCurrentPage}
       />
 
-      {/* CART DRAWER */}
-      {showCart && (
-        <Cart
-          cart={cart}
-          updateQuantity={updateQuantity}
-          removeFromCart={removeFromCart}
-          closeCart={() => setShowCart(false)}
-          totalPrice={totalPrice}
-          handleCheckout={handleCheckout}
-          isSubmitting={isSubmitting}
-        />
-      )}
-
-      {/* CHECKOUT TOAST */}
-      <div className={`cart-toast ${checkoutToast ? "show" : ""} ${checkoutToast?.type === 'error' ? "bg-danger" : ""}`}>
-        {checkoutToast?.message} {checkoutToast?.type === 'success' ? "✅" : "❌"}
-      </div>
-
       {currentPage === "profile" ? (
         <Profile user={user} dbUser={dbUser} setDbUser={setDbUser} />
       ) : currentPage === "orders" ? (
         <Orders user={user} navigate={setCurrentPage} />
+      ) : currentPage === "cart" ? (
+        <CartPage
+          cart={cart}
+          updateQuantity={updateQuantity}
+          removeFromCart={removeFromCart}
+          totalPrice={totalPrice}
+          handleCheckout={handleCheckout}
+          isSubmitting={isSubmitting}
+          navigate={setCurrentPage}
+        />
+      ) : currentPage === "wishlist" ? (
+        <WishlistPage
+          wishlist={wishlist}
+          removeFromWishlist={removeFromWishlist}
+          addToCart={addToCart}
+          navigate={setCurrentPage}
+        />
       ) : (
         <div className="container mt-4">
         {/* HERO SECTION */}
@@ -446,6 +466,8 @@ function App() {
                         key={p.id}
                         product={p}
                         addToCart={addToCart}
+                        addToWishlist={addToWishlist}
+                        isInWishlist={wishlist.some(w => w.id === p.id)}
                       />
                     ))}
                   </div>
