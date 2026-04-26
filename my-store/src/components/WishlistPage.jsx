@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 function formatPrice(price) {
   if (!price && price !== 0) return "0";
@@ -6,6 +6,21 @@ function formatPrice(price) {
 }
 
 function WishlistPage({ wishlist, removeFromWishlist, addToCart, navigate }) {
+  const [toast, setToast] = useState({ show: false, message: "" });
+
+  // Auto-hide toast after 2s
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => setToast({ show: false, message: "" }), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.show]);
+
+  const handleAddToCart = (item) => {
+    addToCart(item);
+    removeFromWishlist(item.id);
+    setToast({ show: true, message: "Item added to cart successfully ✅" });
+  };
   return (
     <div className="container mt-4 mb-5">
       <div className="d-flex align-items-center mb-4">
@@ -37,8 +52,19 @@ function WishlistPage({ wishlist, removeFromWishlist, addToCart, navigate }) {
                   />
                   <button
                     className="btn btn-light position-absolute top-0 end-0 m-2 rounded-circle shadow-sm"
-                    style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center" }}
-                    onClick={() => removeFromWishlist(item.id)}
+                    style={{ 
+                      width: "36px", 
+                      height: "36px", 
+                      display: "flex", 
+                      alignItems: "center", 
+                      justifyContent: "center",
+                      zIndex: 10,
+                      pointerEvents: "auto"
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFromWishlist(item.id);
+                    }}
                     title="Remove from wishlist"
                   >
                     <i className="bi bi-trash text-danger"></i>
@@ -55,7 +81,7 @@ function WishlistPage({ wishlist, removeFromWishlist, addToCart, navigate }) {
                     <span className="fw-bold text-primary-custom">EGP {formatPrice(item.price)}</span>
                     <button
                       className="btn btn-sm btn-primary-custom px-3 py-1 rounded-pill shadow-sm"
-                      onClick={() => addToCart(item)}
+                      onClick={() => handleAddToCart(item)}
                     >
                       <i className="bi bi-cart-plus me-1"></i> Add
                     </button>
@@ -66,6 +92,11 @@ function WishlistPage({ wishlist, removeFromWishlist, addToCart, navigate }) {
           ))}
         </div>
       )}
+
+      {/* Toast Notification */}
+      <div className={`cart-toast ${toast.show ? "show" : ""}`}>
+        {toast.message}
+      </div>
     </div>
   );
 }
