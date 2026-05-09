@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getUserOrders } from "../services/db";
+import { getUserOrders, getLocalOrders } from "../services/db";
 
 function Orders({ user, navigate }) {
   const [orders, setOrders] = useState([]);
@@ -12,6 +12,9 @@ function Orders({ user, navigate }) {
       fetchOrders(false);
       interval = setInterval(() => fetchOrders(true), 5000);
     } else {
+      // Guest: show local orders only
+      const localOrders = getLocalOrders().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setOrders(localOrders);
       setLoading(false);
     }
     return () => clearInterval(interval);
@@ -29,10 +32,6 @@ function Orders({ user, navigate }) {
     }
     if (!isPolling) setLoading(false);
   };
-
-  if (!user) {
-    return <div className="text-center py-5">Please sign in to view your orders.</div>;
-  }
 
   if (loading) {
     return (
@@ -53,7 +52,7 @@ function Orders({ user, navigate }) {
       <div className="container py-5 text-center">
         <i className="bi bi-box-seam text-muted-custom" style={{ fontSize: "4rem" }}></i>
         <h3 className="mt-3 text-muted-custom">No orders yet</h3>
-        <p className="opacity-75 mb-4">You haven’t placed any orders yet. Start exploring our products.</p>
+        <p className="opacity-75 mb-4">You haven't placed any orders yet. Start exploring our products.</p>
         <button className="btn btn-primary-custom px-4 py-2" onClick={() => navigate("home")}>
           Browse Products
         </button>
@@ -91,6 +90,17 @@ function Orders({ user, navigate }) {
                 </div>
               </div>
               <div className="card-body">
+                {/* WhatsApp order customer info */}
+                {order.customerName && (
+                  <div className="mb-3 pb-3 border-bottom border-light">
+                    <div className="d-flex flex-wrap gap-3" style={{ fontSize: "0.85rem" }}>
+                      <span className="text-muted-custom"><i className="bi bi-person me-1"></i>{order.customerName}</span>
+                      {order.phone && <span className="text-muted-custom"><i className="bi bi-telephone me-1"></i>{order.phone}</span>}
+                      {order.address && <span className="text-muted-custom"><i className="bi bi-geo-alt me-1"></i>{order.address}</span>}
+                    </div>
+                  </div>
+                )}
+
                 {items.map((item, itemIdx) => (
                   <div key={itemIdx} className="d-flex align-items-center mb-3 pb-3 border-bottom border-light">
                     <img src={item.image} alt={item.name} width="50" height="50" className="rounded object-fit-cover me-3" />
@@ -127,3 +137,4 @@ function Orders({ user, navigate }) {
 }
 
 export default Orders;
+

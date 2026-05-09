@@ -50,9 +50,34 @@ export const createOrder = async (orderData) => {
 
 export const getUserOrders = async (email) => {
   if (!email) return [];
-  const res = await fetch(`${API_URL}?email=${encodeURIComponent(email)}`);
-  if (!res.ok) throw new Error("Failed to load orders from server.");
-  const data = await res.json();
-  
-  return (data || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  try {
+    const res = await fetch(`${API_URL}?email=${encodeURIComponent(email)}`);
+    if (!res.ok) throw new Error("Failed to load orders from server.");
+    const data = await res.json();
+    const serverOrders = (data || []);
+    // Merge with local WhatsApp orders
+    const localOrders = getLocalOrders();
+    return [...serverOrders, ...localOrders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  } catch {
+    // If server is unreachable, return local orders only
+    return getLocalOrders().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+};
+
+// ================= LOCAL WHATSAPP ORDERS =================
+const LOCAL_ORDERS_KEY = "whatsapp_orders";
+
+export const saveLocalOrder = (orderData) => {
+  const existing = getLocalOrders();
+  existing.push(orderData);
+  localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(existing));
+};
+
+export const getLocalOrders = () => {
+  try {
+    const data = localStorage.getItem(LOCAL_ORDERS_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
 };

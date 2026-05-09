@@ -1,11 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
+import CheckoutModal from "./CheckoutModal";
 
 function formatPrice(price) {
   if (!price && price !== 0) return "0";
   return Number(price).toLocaleString("en-EG");
 }
 
-function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, handleCheckout, isSubmitting, navigate }) {
+function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, user, dbUser, onOrderConfirmed }) {
+  const [showCheckout, setShowCheckout] = useState(false);
+
   return (
     <div className="container mt-4 mb-5">
       <div className="d-flex align-items-center mb-4">
@@ -95,23 +98,28 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, handleChec
                 </div>
                 <button
                   className="btn btn-primary-custom w-100 py-3 rounded-3 fw-bold shadow-sm"
-                  onClick={handleCheckout}
-                  disabled={isSubmitting}
+                  onClick={() => setShowCheckout(true)}
                 >
-                  {isSubmitting ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Processing...
-                    </>
-                  ) : (
-                    "Proceed to Checkout"
-                  )}
+                  Proceed to Checkout
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      <CheckoutModal
+        isOpen={showCheckout}
+        onClose={() => setShowCheckout(false)}
+        cart={cart}
+        totalPrice={totalPrice}
+        user={user}
+        dbUser={dbUser}
+        onOrderConfirmed={(orderData) => {
+          onOrderConfirmed(orderData);
+          setShowCheckout(false);
+        }}
+      />
     </div>
   );
 }

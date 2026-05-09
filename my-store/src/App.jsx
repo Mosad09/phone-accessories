@@ -15,7 +15,7 @@ import { auth } from "./utils/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import Profile from "./components/Profile";
 import Orders from "./components/Orders";
-import { syncUser, createOrder } from "./services/db";
+import { syncUser, saveLocalOrder } from "./services/db";
 function App() {
   // ================= STATE =================
   const [products, setProducts] = useState([]);
@@ -25,8 +25,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
   const [currentPage, setCurrentPage] = useState("home");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [checkoutToast, setCheckoutToast] = useState(null);
+
 
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem("cart");
@@ -112,13 +111,7 @@ function App() {
     localStorage.setItem("wishlist", JSON.stringify(wishlist));
   }, [wishlist]);
 
-  // ================= TOAST TIMEOUT =================
-  useEffect(() => {
-    if (checkoutToast) {
-      const timer = setTimeout(() => setCheckoutToast(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [checkoutToast]);
+
 
   // ================= DERIVED DATA =================
   const categories = useMemo(() => {
@@ -206,46 +199,10 @@ function App() {
     setWishlist((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleCheckout = async () => {
-    if (isSubmitting) return;
-
-    if (!user) {
-      alert("Please sign in to place an order.");
-      return;
-    }
-
-    const hasAddress = typeof dbUser?.address === 'object' 
-      ? (dbUser.address.governorate && dbUser.address.city && dbUser.address.detail)
-      : !!dbUser?.address;
-
-    if (!hasAddress || !dbUser?.phone) {
-      alert("Please update your profile with your delivery address and phone number before checking out.");
-      setCurrentPage("profile");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const orderData = {
-        userId: user.uid,
-        userName: dbUser.name,
-        email: dbUser.email,
-        phone: dbUser.phone,
-        address: dbUser.address,
-        items: cart,
-        totalPrice: totalPrice
-      };
-      
-      await createOrder(orderData);
-      setCart([]);
-      setCurrentPage("orders");
-      setCheckoutToast({ type: 'success', message: "Order placed successfully" });
-    } catch (err) {
-      console.error(err);
-      setCheckoutToast({ type: 'error', message: "Something went wrong" });
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleOrderConfirmed = (orderData) => {
+    saveLocalOrder(orderData);
+    setCart([]);
+    setCurrentPage("orders");
   };
 
   // ================= FILTER HANDLERS =================
@@ -353,9 +310,10 @@ function App() {
           updateQuantity={updateQuantity}
           removeFromCart={removeFromCart}
           totalPrice={totalPrice}
-          handleCheckout={handleCheckout}
-          isSubmitting={isSubmitting}
           navigate={setCurrentPage}
+          user={user}
+          dbUser={dbUser}
+          onOrderConfirmed={handleOrderConfirmed}
         />
       ) : currentPage === "wishlist" ? (
         <WishlistPage
