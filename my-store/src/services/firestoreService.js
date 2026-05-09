@@ -80,27 +80,48 @@ export const deleteProductImage = async (publicId) => {
 
 const ordersCol = collection(db, "orders");
 
+/** Real Firestore doc id must stay in `id` for updateDoc/delete. Stored `data.id` (e.g. ORD-…) is surfaced as displayOrderId only. */
+export const normalizeOrderFromSnapshot = (d) => {
+  const data = d.data();
+  const legacyCustomId =
+    typeof data.id === "string" && data.id.startsWith("ORD") ? data.id : null;
+  const displayOrderId =
+    data.orderNumber ||
+    data.orderId ||
+    legacyCustomId ||
+    `ORD-${String(d.id).replace(/[^a-zA-Z0-9]/g, "").slice(-6)}`;
+  return {
+    ...data,
+    id: d.id,
+    displayOrderId,
+    createdAt:
+      data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
+    updatedAt:
+      data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+  };
+};
+
 export const saveOrderToFirestore = async (orderData) => {
-  const docRef = await addDoc(ordersCol, {
-    ...orderData,
+  const { id: legacyStoredId, ...rest } = orderData;
+  const payload = {
+    ...rest,
+    ...(legacyStoredId &&
+    typeof legacyStoredId === "string" &&
+    legacyStoredId.startsWith("ORD") &&
+    !rest.orderId
+      ? { orderId: legacyStoredId }
+      : {}),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
+  const docRef = await addDoc(ordersCol, payload);
   return docRef.id;
 };
 
 export const subscribeToOrders = (callback) => {
   const q = query(ordersCol, orderBy("createdAt", "desc"));
   return onSnapshot(q, (snapshot) => {
-    const orders = snapshot.docs.map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        ...data,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
-        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
-      };
-    });
+    const orders = snapshot.docs.map((d) => normalizeOrderFromSnapshot(d));
     callback(orders);
   });
 };
@@ -108,15 +129,7 @@ export const subscribeToOrders = (callback) => {
 export const subscribeToUserOrders = (email, callback) => {
   const q = query(ordersCol, where("email", "==", email), orderBy("createdAt", "desc"));
   return onSnapshot(q, (snapshot) => {
-    const orders = snapshot.docs.map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        ...data,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
-        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
-      };
-    });
+    const orders = snapshot.docs.map((d) => normalizeOrderFromSnapshot(d));
     callback(orders);
   });
 };
@@ -125,18 +138,14 @@ export const getUserOrdersFromFirestore = async (email) => {
   if (!email) return [];
   const q = query(ordersCol, where("email", "==", email), orderBy("createdAt", "desc"));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      ...data,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-    };
-  });
+  return snapshot.docs.map((d) => normalizeOrderFromSnapshot(d));
 };
 
-export const updateOrderStatus = async (orderId, status) => {
-  const docRef = doc(db, "orders", orderId);
+export const updateOrderStatus = async (firestoreDocId, status) => {
+  if (!firestoreDocId || typeof firestoreDocId !== "string") {
+    throw new Error("Invalid Firestore document id for order update.");
+  }
+  const docRef = doc(db, "orders", firestoreDocId);
   await updateDoc(docRef, {
     status,
     updatedAt: serverTimestamp(),

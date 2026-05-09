@@ -70,10 +70,16 @@ function Orders({ user, navigate }) {
           
           let badgeClass = "bg-secondary";
           if (status === "pending") badgeClass = "bg-warning text-dark";
-          if (status === "confirmed") badgeClass = "bg-info text-dark";
+          if (status === "processing" || status === "confirmed") badgeClass = "bg-info text-dark";
           if (status === "shipped") badgeClass = "bg-primary";
           if (status === "delivered") badgeClass = "bg-success";
           if (status === "cancelled") badgeClass = "bg-danger";
+
+          const orderLabel =
+            order.displayOrderId ||
+            order.orderId ||
+            (typeof order.id === "string" && order.id.startsWith("ORD") ? order.id : null) ||
+            (order.createdAt ? `ORD-${new Date(order.createdAt).getTime().toString().slice(-6)}` : "—");
 
           return (
           <div key={order.id || order.createdAt || idx} className="col-12 mb-4">
@@ -81,11 +87,11 @@ function Orders({ user, navigate }) {
               <div className="card-header bg-light d-flex justify-content-between align-items-center py-3 border-0">
                 <div>
                   <span className="text-muted-custom d-block" style={{ fontSize: "0.85rem" }}>Order ID</span>
-                  <span className="fw-semibold">{order.id || `ORD-${new Date(order.createdAt).getTime().toString().slice(-6)}`}</span>
+                  <span className="fw-semibold">{orderLabel}</span>
                 </div>
                 <div className="text-end">
                   <span className={`badge ${badgeClass} px-3 py-2 rounded-pill`}>
-                    {status.toUpperCase()}
+                    {(status === "confirmed" ? "processing" : status).toUpperCase()}
                   </span>
                 </div>
               </div>

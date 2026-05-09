@@ -99,7 +99,7 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
 
   const handleConfirmYes = () => {
     const orderData = {
-      id: `ORD-${Date.now().toString().slice(-6)}`,
+      orderId: `ORD-${Date.now().toString().slice(-6)}`,
       customerName: fullName.trim(),
       phone: phone.trim(),
       address: address.trim(),
