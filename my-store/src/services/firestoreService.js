@@ -25,6 +25,12 @@ export const getProducts = async () => {
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 };
 
+export const getProductById = async (productId) => {
+  const docRef = doc(db, "products", productId);
+  const snapshot = await getDoc(docRef);
+  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+};
+
 export const addProduct = async (productData) => {
   const docRef = await addDoc(productsCol, {
     ...productData,

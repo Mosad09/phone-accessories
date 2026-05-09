@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 /** Convert a string to Proper Case (each word capitalized) */
 function toProperCase(str) {
@@ -17,9 +18,9 @@ function formatPrice(price) {
 }
 
 function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
-  const [showDetails, setShowDetails] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "" });
   const cardRef = useRef(null);
+  const navigate = useNavigate();
 
   // Auto-hide toast after 2s
   useEffect(() => {
@@ -41,8 +42,15 @@ function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
     setToast({ show: true, message: "Added to wishlist ❤️" });
   };
 
-  const toggleDetails = () => {
-    setShowDetails(prev => !prev);
+  const openProductDetails = () => {
+    navigate(`/product/${product.id}`);
+  };
+
+  const handleCardKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openProductDetails();
+    }
   };
 
   const properName = toProperCase(product.name);
@@ -50,11 +58,16 @@ function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
   return (
     <div className="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
       <div
-        className={`product-card ${showDetails ? "details-active" : ""}`}
+        className="product-card"
         ref={cardRef}
+        role="link"
+        tabIndex={0}
+        onClick={openProductDetails}
+        onKeyDown={handleCardKeyDown}
+        style={{ cursor: "pointer" }}
       >
         {/* Product Image */}
-        <div className="product-img-wrapper" onClick={toggleDetails}>
+        <div className="product-img-wrapper">
           <img
             src={product.image}
             alt={properName}
@@ -62,7 +75,7 @@ function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
           />
 
           {/* Hover/Active Details Overlay */}
-          <div className={`product-details-overlay ${showDetails ? "show" : ""}`}>
+          <div className="product-details-overlay">
             <div className="overlay-content">
               <h6 className="overlay-title">{properName}</h6>
               {product.category && (

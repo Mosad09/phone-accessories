@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 import Navbar from "./components/Navbar";
 import ProductCard from "./components/ProductCard";
+import ProductDetailPage from "./components/ProductDetailPage";
 import CartPage from "./components/CartPage";
 import WishlistPage from "./components/WishlistPage";
 import FilterSidebar from "./components/FilterSidebar";
@@ -24,6 +26,8 @@ const getPageFromPath = (pathname) => {
 };
 
 function App() {
+  const location = useLocation();
+  const routerNavigate = useNavigate();
   // ================= STATE =================
   const [products, setProducts] = useState([]);
   const [showCart, setShowCart] = useState(false);
@@ -40,16 +44,12 @@ function App() {
   // Sync URL with state
   const setCurrentPage = useCallback((page) => {
     setCurrentPageState(page);
-    window.history.pushState(null, "", `/${page === "home" ? "" : page}`);
-  }, []);
+    routerNavigate(`/${page === "home" ? "" : page}`);
+  }, [routerNavigate]);
 
   useEffect(() => {
-    const handlePopState = () => {
-      setCurrentPageState(getPageFromPath(window.location.pathname));
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+    setCurrentPageState(getPageFromPath(location.pathname));
+  }, [location.pathname]);
 
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem("cart");
@@ -335,7 +335,22 @@ function App() {
         isAdmin={isAdmin}
       />
 
-      {isAuthChecking ? (
+      <Routes>
+        <Route
+          path="/product/:id"
+          element={
+            <ProductDetailPage
+              products={products}
+              addToCart={addToCart}
+              addToWishlist={addToWishlist}
+              isInWishlist={(id) => wishlist.some((item) => item.id === id)}
+              navigate={setCurrentPage}
+            />
+          }
+        />
+        <Route
+          path="*"
+          element={isAuthChecking ? (
         <div className="container py-5 text-center">
           <div className="spinner-border text-primary-custom" role="status">
             <span className="visually-hidden">Loading...</span>
@@ -506,6 +521,8 @@ function App() {
         </div>
       </div>
       )}
+        />
+      </Routes>
     </div>
   );
 }
