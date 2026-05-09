@@ -10,7 +10,7 @@ function AdminProducts() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [imageFile, setImageFile] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState("");
   const [currentImagePublicId, setCurrentImagePublicId] = useState("");
@@ -56,7 +56,7 @@ function AdminProducts() {
       setCurrentImagePublicId("");
       setFormData(initialForm);
     }
-    setImageFile(null);
+    setImageFiles([]);
     setShowModal(true);
   };
 
@@ -64,7 +64,7 @@ function AdminProducts() {
     setShowModal(false);
     setEditingId(null);
     setFormData(initialForm);
-    setImageFile(null);
+    setImageFiles([]);
     setUploadError("");
     setUploadProgress(0);
     setCurrentImagePublicId("");
@@ -106,9 +106,11 @@ function AdminProducts() {
       let imageUrl = formData.image;
       let imageUrls = imageUrl ? [imageUrl] : [];
       let imagePublicIds = currentImagePublicId ? [currentImagePublicId] : [];
-      const fileError = validateImageFile(imageFile);
-      if (fileError) {
-        throw new Error(fileError);
+      for (const file of imageFiles) {
+        const fileError = validateImageFile(file);
+        if (fileError) {
+          throw new Error(fileError);
+        }
       }
       
       const payload = {
@@ -122,11 +124,19 @@ function AdminProducts() {
       };
 
       if (editingId) {
-        if (imageFile) {
-          const { url, publicId } = await uploadProductImage(imageFile, editingId, setUploadProgress);
-          imageUrl = url;
-          imageUrls = [url];
-          imagePublicIds = publicId ? [publicId] : [];
+        if (imageFiles.length > 0) {
+          const totalFiles = imageFiles.length;
+          const uploaded = [];
+          for (let i = 0; i < totalFiles; i += 1) {
+            const result = await uploadProductImage(imageFiles[i], editingId, (singleProgress) => {
+              const overall = Math.round(((i + singleProgress / 100) / totalFiles) * 100);
+              setUploadProgress(overall);
+            });
+            uploaded.push(result);
+          }
+          imageUrls = uploaded.map((item) => item.url);
+          imageUrl = imageUrls[0] || "";
+          imagePublicIds = uploaded.map((item) => item.publicId).filter(Boolean);
         }
         await updateProduct(editingId, {
           ...payload,
@@ -136,11 +146,19 @@ function AdminProducts() {
         });
       } else {
         const productId = `product_${Date.now()}`;
-        if (imageFile) {
-          const { url, publicId } = await uploadProductImage(imageFile, productId, setUploadProgress);
-          imageUrl = url;
-          imageUrls = [url];
-          imagePublicIds = publicId ? [publicId] : [];
+        if (imageFiles.length > 0) {
+          const totalFiles = imageFiles.length;
+          const uploaded = [];
+          for (let i = 0; i < totalFiles; i += 1) {
+            const result = await uploadProductImage(imageFiles[i], productId, (singleProgress) => {
+              const overall = Math.round(((i + singleProgress / 100) / totalFiles) * 100);
+              setUploadProgress(overall);
+            });
+            uploaded.push(result);
+          }
+          imageUrls = uploaded.map((item) => item.url);
+          imageUrl = imageUrls[0] || "";
+          imagePublicIds = uploaded.map((item) => item.publicId).filter(Boolean);
         }
         await createProductWithId(productId, {
           ...payload,
@@ -313,9 +331,9 @@ function AdminProducts() {
                   <div className="col-12">
                     <label className="form-label fw-medium">Product Image</label>
                     <div className="d-flex align-items-center gap-3">
-                      {(imageFile || formData.image) && (
+                      {(imageFiles[0] || formData.image) && (
                         <img 
-                          src={imageFile ? URL.createObjectURL(imageFile) : formData.image} 
+                          src={imageFiles[0] ? URL.createObjectURL(imageFiles[0]) : formData.image} 
                           alt="Preview" 
                           className="rounded border object-fit-cover" 
                           style={{width: "80px", height: "80px"}} 
@@ -325,28 +343,34 @@ function AdminProducts() {
                         type="file" 
                         className="form-control" 
                         accept="image/*" 
+                        multiple
                         onChange={e => {
-                          const file = e.target.files[0];
-                          const validationError = validateImageFile(file);
+                          const files = Array.from(e.target.files || []);
+                          const validationError = files.map(validateImageFile).find(Boolean) || "";
                           setUploadError(validationError);
-                          if (!validationError && file) {
-                            setImageFile(file);
+                          if (!validationError && files.length > 0) {
+                            setImageFiles(files);
                             setUploadProgress(0);
                           } else {
-                            setImageFile(null);
+                            setImageFiles([]);
                           }
                         }} 
                       />
                     </div>
-                    {isSaving && imageFile && (
+                    {isSaving && imageFiles.length > 0 && (
                       <div className="mt-2">
                         <div className="progress" role="progressbar" aria-label="Upload progress" aria-valuenow={uploadProgress} aria-valuemin="0" aria-valuemax="100">
                           <div className="progress-bar progress-bar-striped progress-bar-animated" style={{ width: `${uploadProgress}%` }}>
                             {uploadProgress}%
                           </div>
                         </div>
-                        <small className="text-muted">Uploading image to Firebase Storage...</small>
+                        <small className="text-muted">Uploading image to Cloudinary...</small>
                       </div>
+                    )}
+                    {!isSaving && imageFiles.length > 1 && (
+                      <small className="text-muted d-block mt-2">
+                        {imageFiles.length} images selected. The first image will be used as the main thumbnail.
+                      </small>
                     )}
                     {uploadError && (
                       <div className="alert alert-danger mt-2 mb-0 py-2" role="alert">

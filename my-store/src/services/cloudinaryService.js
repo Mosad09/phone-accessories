@@ -5,6 +5,12 @@ const CLOUDINARY_UPLOAD_URL = CLOUDINARY_CLOUD_NAME
   ? `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`
   : "";
 
+const createCloudinaryError = (message, code) => {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+};
+
 const getUploadConfigError = () => {
   if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
     return "Cloudinary is not configured. Please set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.";
@@ -16,7 +22,7 @@ export const uploadImageToCloudinary = (file, options = {}) => {
   const { folder = "products", onProgress } = options;
   const configError = getUploadConfigError();
   if (configError) {
-    return Promise.reject(new Error(configError));
+    return Promise.reject(createCloudinaryError(configError, "cloudinary/config-missing"));
   }
 
   return new Promise((resolve, reject) => {
@@ -27,6 +33,7 @@ export const uploadImageToCloudinary = (file, options = {}) => {
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", CLOUDINARY_UPLOAD_URL, true);
+    xhr.timeout = 120000;
 
     xhr.upload.onprogress = (event) => {
       if (typeof onProgress === "function" && event.lengthComputable) {
@@ -36,7 +43,15 @@ export const uploadImageToCloudinary = (file, options = {}) => {
     };
 
     xhr.onerror = () => {
-      reject(new Error("Network error while uploading image to Cloudinary."));
+      reject(createCloudinaryError("Network error while uploading image to Cloudinary.", "cloudinary/network-error"));
+    };
+
+    xhr.ontimeout = () => {
+      reject(createCloudinaryError("Upload timed out. Please try again.", "cloudinary/timeout"));
+    };
+
+    xhr.onabort = () => {
+      reject(createCloudinaryError("Upload was canceled.", "cloudinary/canceled"));
     };
 
     xhr.onload = () => {
@@ -51,12 +66,14 @@ export const uploadImageToCloudinary = (file, options = {}) => {
           return;
         }
         reject(
-          new Error(
+          createCloudinaryError(
             result?.error?.message || "Cloudinary upload failed. Please try again."
+            ,
+            "cloudinary/upload-failed"
           )
         );
       } catch {
-        reject(new Error("Invalid response from Cloudinary upload endpoint."));
+        reject(createCloudinaryError("Invalid response from Cloudinary upload endpoint.", "cloudinary/invalid-response"));
       }
     };
 
