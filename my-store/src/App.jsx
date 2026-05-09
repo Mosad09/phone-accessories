@@ -26,8 +26,27 @@ function App() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [user, setUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
-  const [currentPage, setCurrentPage] = useState("home");
+  const [currentPage, setCurrentPageState] = useState(() => {
+    const path = window.location.pathname.replace("/", "");
+    return path || "home";
+  });
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  // Sync URL with state
+  const setCurrentPage = useCallback((page) => {
+    setCurrentPageState(page);
+    window.history.pushState(null, "", `/${page === "home" ? "" : page}`);
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.replace("/", "");
+      setCurrentPageState(path || "home");
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem("cart");
@@ -70,11 +89,14 @@ function App() {
       } else {
         setDbUser(null);
         setIsAdmin(false);
-        if (currentPage === "admin") setCurrentPage("home");
+        if (window.location.pathname.replace("/", "") === "admin") {
+          setCurrentPage("home");
+        }
       }
+      setIsAuthChecking(false);
     });
     return unsub;
-  }, []);
+  }, [setCurrentPage]);
 
 
 
@@ -310,7 +332,13 @@ function App() {
         isAdmin={isAdmin}
       />
 
-      {currentPage === "admin" && isAdmin ? (
+      {isAuthChecking ? (
+        <div className="container py-5 text-center">
+          <div className="spinner-border text-primary-custom" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      ) : currentPage === "admin" && isAdmin ? (
         <AdminPanel navigate={setCurrentPage} />
       ) : currentPage === "profile" ? (
         <Profile user={user} dbUser={dbUser} setDbUser={setDbUser} />
