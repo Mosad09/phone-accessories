@@ -18,6 +18,11 @@ import AdminPanel from "./components/admin/AdminPanel";
 import { syncUser } from "./services/db";
 import { subscribeToProducts, saveOrderToFirestore, isUserAdmin } from "./services/firestoreService";
 
+const getPageFromPath = (pathname) => {
+  const normalized = pathname.replace(/^\/+|\/+$/g, "");
+  return normalized || "home";
+};
+
 function App() {
   // ================= STATE =================
   const [products, setProducts] = useState([]);
@@ -27,8 +32,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
   const [currentPage, setCurrentPageState] = useState(() => {
-    const path = window.location.pathname.replace("/", "");
-    return path || "home";
+    return getPageFromPath(window.location.pathname);
   });
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
@@ -41,8 +45,7 @@ function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname.replace("/", "");
-      setCurrentPageState(path || "home");
+      setCurrentPageState(getPageFromPath(window.location.pathname));
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
@@ -89,7 +92,7 @@ function App() {
       } else {
         setDbUser(null);
         setIsAdmin(false);
-        if (window.location.pathname.replace("/", "") === "admin") {
+        if (getPageFromPath(window.location.pathname) === "admin") {
           setCurrentPage("home");
         }
       }
@@ -338,8 +341,24 @@ function App() {
             <span className="visually-hidden">Loading...</span>
           </div>
         </div>
-      ) : currentPage === "admin" && isAdmin ? (
-        <AdminPanel navigate={setCurrentPage} />
+      ) : currentPage === "admin" ? (
+        isAdmin ? (
+          <AdminPanel navigate={setCurrentPage} />
+        ) : (
+          <div className="container py-5 text-center">
+            <i className="bi bi-shield-lock fs-1 text-muted-custom"></i>
+            <h3 className="mt-3">Admin access required</h3>
+            <p className="text-muted-custom mb-4">
+              You do not have permission to view the Admin Dashboard.
+            </p>
+            <button
+              className="btn btn-primary-custom rounded-pill px-4"
+              onClick={() => setCurrentPage("home")}
+            >
+              Back to Store
+            </button>
+          </div>
+        )
       ) : currentPage === "profile" ? (
         <Profile user={user} dbUser={dbUser} setDbUser={setDbUser} />
       ) : currentPage === "orders" ? (
