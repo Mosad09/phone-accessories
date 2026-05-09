@@ -16,7 +16,7 @@ import Profile from "./components/Profile";
 import Orders from "./components/Orders";
 import AdminPanel from "./components/admin/AdminPanel";
 import { syncUser } from "./services/db";
-import { subscribeToProducts, saveOrderToFirestore, isUserAdmin, seedAdmin } from "./services/firestoreService";
+import { subscribeToProducts, saveOrderToFirestore, isUserAdmin } from "./services/firestoreService";
 
 function App() {
   // ================= STATE =================
@@ -60,7 +60,7 @@ function App() {
           const syncedUser = await syncUser(currentUser);
           setDbUser(syncedUser);
           // Check admin status
-          const adminStatus = await isUserAdmin(currentUser.email);
+          const adminStatus = await isUserAdmin(currentUser.uid, currentUser.email);
           setIsAdmin(adminStatus);
         } catch (err) {
           console.error("Error syncing user:", err);
@@ -76,10 +76,7 @@ function App() {
     return unsub;
   }, []);
 
-  // ================= SEED ADMIN (one-time) =================
-  useEffect(() => {
-    seedAdmin("mosaadmagdy0124@gmail.com").catch(() => {});
-  }, []);
+
 
   // ================= FETCH PRODUCTS FROM FIRESTORE =================
   useEffect(() => {

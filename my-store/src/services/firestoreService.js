@@ -137,19 +137,29 @@ export const updateOrderStatus = async (orderId, status) => {
 
 // ===================== ADMIN =====================
 
-export const isUserAdmin = async (email) => {
-  if (!email) return false;
+export const isUserAdmin = async (uid, email) => {
+  if (!uid && !email) return false;
   try {
-    const docRef = doc(db, "admins", email);
-    const snap = await getDoc(docRef);
-    return snap.exists();
+    // First try by uid if available
+    if (uid) {
+      const docRef = doc(db, "users", uid);
+      const snap = await getDoc(docRef);
+      if (snap.exists() && snap.data().role === "admin") {
+        return true;
+      }
+    }
+    
+    // Fallback: query users collection by email
+    if (email) {
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email), where("role", "==", "admin"));
+      const querySnapshot = await getDocs(q);
+      return !querySnapshot.empty;
+    }
+    
+    return false;
   } catch (err) {
     console.error("Admin check error:", err);
     return false;
   }
-};
-
-export const seedAdmin = async (email) => {
-  const docRef = doc(db, "admins", email);
-  await setDoc(docRef, { email, createdAt: serverTimestamp() }, { merge: true });
 };
