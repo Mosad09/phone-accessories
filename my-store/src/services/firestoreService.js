@@ -4,7 +4,7 @@ import {
   onSnapshot, query, orderBy, where, setDoc, serverTimestamp
 } from "firebase/firestore";
 import {
-  ref, uploadBytes, getDownloadURL, deleteObject
+  ref, uploadBytesResumable, getDownloadURL, deleteObject
 } from "firebase/storage";
 
 // ===================== PRODUCTS =====================
@@ -36,6 +36,16 @@ export const addProduct = async (productData) => {
   return docRef.id;
 };
 
+export const createProductWithId = async (productId, productData) => {
+  const docRef = doc(db, "products", productId);
+  await setDoc(docRef, {
+    ...productData,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return productId;
+};
+
 export const updateProduct = async (productId, data) => {
   const docRef = doc(db, "products", productId);
   await updateDoc(docRef, {
@@ -51,12 +61,38 @@ export const deleteProduct = async (productId) => {
 
 // ===================== PRODUCT IMAGES =====================
 
-export const uploadProductImage = async (file, productId) => {
-  const fileName = `${Date.now()}_${file.name}`;
+export const uploadProductImage = async (file, productId, onProgress) => {
+  const safeName = (file?.name || "image")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .slice(0, 120);
+  const fileName = `${Date.now()}_${safeName}`;
   const storageRef = ref(storage, `products/${productId}/${fileName}`);
-  const snapshot = await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(snapshot.ref);
-  return { url, path: snapshot.ref.fullPath };
+  const metadata = {
+    contentType: file.type || "application/octet-stream",
+    cacheControl: "public,max-age=31536000,immutable",
+  };
+
+  return new Promise((resolve, reject) => {
+    const uploadTask = uploadBytesResumable(storageRef, file, metadata);
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        if (typeof onProgress === "function" && snapshot.totalBytes > 0) {
+          const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          onProgress(percent);
+        }
+      },
+      (error) => reject(error),
+      async () => {
+        try {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve({ url, path: uploadTask.snapshot.ref.fullPath });
+        } catch (error) {
+          reject(error);
+        }
+      }
+    );
+  });
 };
 
 export const deleteProductImage = async (imagePath) => {

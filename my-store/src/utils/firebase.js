@@ -3,10 +3,14 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+const STORAGE_BUCKET =
+  import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ||
+  "my-store-6a861.firebasestorage.app";
+
 const firebaseConfig = {
   projectId: "my-store-6a861",
   appId: "1:562504670976:web:7239c138556bb7346b9de5",
-  storageBucket: "my-store-6a861.firebasestorage.app",
+  storageBucket: STORAGE_BUCKET,
   apiKey: "AIzaSyCPiBojeZPe_NGE_aqYG4We2yLD6tdzIRU",
   authDomain: "my-store-6a861.firebaseapp.com",
   messagingSenderId: "562504670976",
@@ -17,8 +21,15 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
+const storage = getStorage(app, `gs://${firebaseConfig.storageBucket}`);
 const provider = new GoogleAuthProvider();
+
+if (
+  import.meta.env.PROD &&
+  String(firebaseConfig.storageBucket).includes("localhost")
+) {
+  console.warn("[Firebase] Invalid localhost storage bucket in production build.");
+}
 
 export const loginWithGoogle = async () => {
   try {
