@@ -181,7 +181,8 @@ function App() {
   // ================= CART LOGIC =================
   const [cartPulse, setCartPulse] = useState(false);
 
-  const addToCart = (product) => {
+  const addToCart = (product, quantity = 1) => {
+    const safeQuantity = Math.max(1, Number(quantity) || 1);
     setCartPulse(true);
     setTimeout(() => setCartPulse(false), 300);
 
@@ -189,10 +190,10 @@ function App() {
       const existing = prev.find((p) => p.id === product.id);
       if (existing) {
         return prev.map((p) =>
-          p.id === product.id ? { ...p, qty: p.qty + 1 } : p
+          p.id === product.id ? { ...p, qty: p.qty + safeQuantity } : p
         );
       }
-      return [...prev, { ...product, qty: 1 }];
+      return [...prev, { ...product, qty: safeQuantity }];
     });
   };
 

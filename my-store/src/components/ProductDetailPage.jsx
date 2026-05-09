@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import ProductCard from "./ProductCard";
 import { getProductById } from "../services/firestoreService";
 
 function formatPrice(price) {
@@ -20,6 +21,7 @@ function normalizeProduct(product) {
     stock: Number(product.stock) || 0,
     sizes: product.sizes || [],
     colors: product.colors || [],
+    featured: Boolean(product.featured),
   };
 }
 
@@ -49,6 +51,7 @@ function ProductDetailPage({
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeImage, setActiveImage] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [toast, setToast] = useState({ show: false, message: "" });
 
   useEffect(() => {
@@ -63,6 +66,7 @@ function ProductDetailPage({
         if (!cancelled) {
           setProduct(normalized);
           setActiveImage(normalized.image);
+          setQuantity(1);
           setLoading(false);
         }
         return;
@@ -82,6 +86,7 @@ function ProductDetailPage({
         const normalized = normalizeProduct(firestoreProduct);
         setProduct(normalized);
         setActiveImage(normalized.image);
+        setQuantity(1);
       } catch (error) {
         console.error("Failed to load product:", error);
         if (!cancelled) {
@@ -121,6 +126,13 @@ function ProductDetailPage({
     ];
   }, [product]);
 
+  const relatedProducts = useMemo(() => {
+    if (!product?.category) return [];
+    return products
+      .filter((item) => item.id !== product.id && item.category === product.category)
+      .slice(0, 4);
+  }, [product, products]);
+
   if (loading) {
     return (
       <div className="container py-5 text-center">
@@ -147,6 +159,8 @@ function ProductDetailPage({
   const inStock = product.stock > 0;
   const colors = toArray(product.colors);
   const sizes = toArray(product.sizes);
+  const currentPrice = product.discountPrice || product.price;
+  const canIncreaseQuantity = inStock && quantity < product.stock;
 
   return (
     <div className="container mt-4 mb-5">
@@ -157,12 +171,12 @@ function ProductDetailPage({
         <span className="text-muted-custom">Product Details</span>
       </div>
 
-      <div className="row g-4 g-lg-5">
+      <div className="row g-4 align-items-start">
         <div className="col-lg-6">
           <div className="product-card p-3">
-            <div className="product-img-wrapper rounded-3 border-0" style={{ minHeight: "360px" }}>
+            <div className="product-img-wrapper rounded-3 border-0" style={{ minHeight: "300px" }}>
               {activeImage ? (
-                <img src={activeImage} alt={product.name} className="product-img img-fluid" style={{ height: "300px" }} />
+                <img src={activeImage} alt={product.name || "Product image"} className="product-img img-fluid" style={{ height: "240px" }} />
               ) : (
                 <i className="bi bi-image text-muted-custom" style={{ fontSize: "4rem" }}></i>
               )}
@@ -177,7 +191,7 @@ function ProductDetailPage({
                     onClick={() => setActiveImage(image)}
                     aria-label="View product image"
                   >
-                    <img src={image} alt="" style={{ width: "72px", height: "72px", objectFit: "contain" }} />
+                    <img src={image} alt="" style={{ width: "64px", height: "64px", objectFit: "contain" }} />
                   </button>
                 ))}
               </div>
@@ -186,13 +200,17 @@ function ProductDetailPage({
         </div>
 
         <div className="col-lg-6">
-          <div className="card shadow-sm border-0 h-100">
-            <div className="card-body p-4 p-lg-5 d-flex flex-column">
-              {product.category && <span className="category-badge">{product.category}</span>}
-              <h1 className="fw-bold mb-3">{product.name}</h1>
+          <div className="product-card p-4 h-100">
+            <div className="d-flex flex-column h-100">
+              <div className="d-flex gap-2 flex-wrap align-items-center mb-2">
+                {product.category && <span className="category-badge mb-0">{product.category}</span>}
+                {product.featured && <span className="badge bg-warning text-dark rounded-pill px-3 py-2">Featured</span>}
+              </div>
+
+              <h1 className="fw-bold mb-3 fs-3">{product.name || "Untitled Product"}</h1>
 
               <div className="d-flex align-items-baseline gap-3 mb-3">
-                <span className="product-price">EGP {formatPrice(product.discountPrice || product.price)}</span>
+                <span className="product-price">EGP {formatPrice(currentPrice)}</span>
                 {product.discountPrice && (
                   <span className="text-muted-custom text-decoration-line-through">
                     EGP {formatPrice(product.price)}
@@ -205,14 +223,14 @@ function ProductDetailPage({
               </span>
 
               {product.description && (
-                <div className="mb-4">
+                <div className="mb-3">
                   <h5 className="fw-bold">Description</h5>
                   <p className="text-muted-custom lh-lg mb-0">{product.description}</p>
                 </div>
               )}
 
               {features.length > 0 && (
-                <div className="mb-4">
+                <div className="mb-3">
                   <h5 className="fw-bold">Features & Specifications</h5>
                   <ul className="text-muted-custom mb-0 ps-3">
                     {features.map((feature) => (
@@ -223,7 +241,7 @@ function ProductDetailPage({
               )}
 
               {colors.length > 0 && (
-                <div className="mb-4">
+                <div className="mb-3">
                   <h6 className="fw-bold">Available Colors</h6>
                   <div className="d-flex gap-2 flex-wrap">
                     {colors.map((color) => (
@@ -234,7 +252,7 @@ function ProductDetailPage({
               )}
 
               {sizes.length > 0 && (
-                <div className="mb-4">
+                <div className="mb-3">
                   <h6 className="fw-bold">Available Sizes</h6>
                   <div className="d-flex gap-2 flex-wrap">
                     {sizes.map((size) => (
@@ -244,33 +262,79 @@ function ProductDetailPage({
                 </div>
               )}
 
-              <div className="d-flex gap-3 mt-auto pt-3">
-                <button
-                  className="btn btn-primary-custom flex-grow-1 py-3"
-                  onClick={() => {
-                    addToCart(product);
-                    setToast({ show: true, message: "Added to cart" });
-                  }}
-                  disabled={!inStock}
-                >
-                  <i className="bi bi-cart-plus me-2"></i>Add to Cart
-                </button>
-                <button
-                  className={`btn ${isInWishlist(product.id) ? "btn-danger" : "btn-outline-danger"} px-4`}
-                  onClick={() => {
-                    addToWishlist(product);
-                    setToast({ show: true, message: "Added to wishlist" });
-                  }}
-                  disabled={isInWishlist(product.id)}
-                  title={isInWishlist(product.id) ? "Already in Wishlist" : "Add to Wishlist"}
-                >
-                  <i className={`bi ${isInWishlist(product.id) ? "bi-heart-fill" : "bi-heart"}`}></i>
-                </button>
+              <div className="d-flex align-items-center justify-content-between gap-3 mt-auto pt-3 price-row">
+                <div className="qty-controls d-flex align-items-center border rounded px-2 py-1 bg-white">
+                  <button
+                    className="btn btn-sm btn-link text-decoration-none text-dark p-1"
+                    onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                    disabled={quantity <= 1}
+                    aria-label="Decrease quantity"
+                  >
+                    <i className="bi bi-dash"></i>
+                  </button>
+                  <span className="mx-3 fw-semibold">{quantity}</span>
+                  <button
+                    className="btn btn-sm btn-link text-decoration-none text-dark p-1"
+                    onClick={() => setQuantity((prev) => Math.min(product.stock || prev + 1, prev + 1))}
+                    disabled={!canIncreaseQuantity}
+                    aria-label="Increase quantity"
+                  >
+                    <i className="bi bi-plus"></i>
+                  </button>
+                </div>
+
+                <div className="d-flex gap-2">
+                  <button
+                    className={`btn ${isInWishlist(product.id) ? "btn-danger" : "btn-outline-danger"} add-btn-sm border-0`}
+                    onClick={() => {
+                      addToWishlist(product);
+                      setToast({ show: true, message: "Added to wishlist" });
+                    }}
+                    disabled={isInWishlist(product.id)}
+                    title={isInWishlist(product.id) ? "Already in Wishlist" : "Add to Wishlist"}
+                  >
+                    <i className={`bi ${isInWishlist(product.id) ? "bi-heart-fill" : "bi-heart"}`}></i>
+                  </button>
+                  <button
+                    className="btn btn-primary-custom add-btn-sm"
+                    onClick={() => {
+                      addToCart(product, quantity);
+                      setToast({ show: true, message: "Added to cart" });
+                    }}
+                    disabled={!inStock}
+                    title="Add to Cart"
+                  >
+                    <i className="bi bi-cart-plus"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <section className="mt-5">
+        <div className="d-flex align-items-center justify-content-between mb-3">
+          <h3 className="fw-bold mb-0">Related Products</h3>
+          {product.category && <span className="text-muted-custom small">{product.category}</span>}
+        </div>
+
+        {relatedProducts.length > 0 ? (
+          <div className="row product-grid-animated">
+            {relatedProducts.map((relatedProduct) => (
+              <ProductCard
+                key={relatedProduct.id}
+                product={relatedProduct}
+                addToCart={addToCart}
+                addToWishlist={addToWishlist}
+                isInWishlist={isInWishlist(relatedProduct.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-muted-custom small">No related products found in this category.</div>
+        )}
+      </section>
 
       <div className={`cart-toast ${toast.show ? "show" : ""}`}>
         {toast.message}
