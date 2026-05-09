@@ -82,7 +82,7 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, 
               </div>
             </div>
           </div>
-          
+
           <div className="col-lg-4">
             <div className="card shadow-sm border-0 sticky-top" style={{ top: "2rem" }}>
               <div className="card-body p-4">
