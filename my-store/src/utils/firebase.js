@@ -1,7 +1,7 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
-
-console.log("[Firebase] Initializing Firebase...");
+import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   projectId: "my-store-6a861",
@@ -16,19 +16,14 @@ const firebaseConfig = {
 // Prevent duplicate initialization
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
 const provider = new GoogleAuthProvider();
-
-console.log("[Firebase] Initialization complete.");
 
 export const loginWithGoogle = async () => {
   try {
-    console.log("[Auth] Starting Google Sign-In...");
     const result = await signInWithPopup(auth, provider);
     const token = await result.user.getIdToken();
-    console.log("[Auth] Google Sign-In successful!", {
-      uid: result.user.uid,
-      email: result.user.email
-    });
     return { user: result.user, token };
   } catch (error) {
     console.error("[Auth] Google Sign-In Error:", error.code, error.message);
@@ -37,7 +32,7 @@ export const loginWithGoogle = async () => {
 };
 
 export const logout = () => {
-  console.log("[Auth] User signing out...");
   return signOut(auth);
 };
-export { auth };
+
+export { auth, db, storage };

@@ -10,12 +10,14 @@ import ActiveFilters from "./components/ActiveFilters";
 import Pagination from "./components/Pagination";
 import useUrlState from "./hooks/useUrlState";
 import { filterAndSort } from "./utils/searchEngine";
-import Papa from "papaparse";
 import { auth } from "./utils/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import Profile from "./components/Profile";
 import Orders from "./components/Orders";
-import { syncUser, saveLocalOrder } from "./services/db";
+import AdminPanel from "./components/admin/AdminPanel";
+import { syncUser } from "./services/db";
+import { subscribeToProducts, saveOrderToFirestore, isUserAdmin, seedAdmin } from "./services/firestoreService";
+
 function App() {
   // ================= STATE =================
   const [products, setProducts] = useState([]);
@@ -25,7 +27,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
   const [currentPage, setCurrentPage] = useState("home");
-
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem("cart");
@@ -57,49 +59,51 @@ function App() {
         try {
           const syncedUser = await syncUser(currentUser);
           setDbUser(syncedUser);
+          // Check admin status
+          const adminStatus = await isUserAdmin(currentUser.email);
+          setIsAdmin(adminStatus);
         } catch (err) {
           console.error("Error syncing user:", err);
           setDbUser({ name: currentUser.displayName, email: currentUser.email });
+          setIsAdmin(false);
         }
       } else {
         setDbUser(null);
-        setCurrentPage("home");
+        setIsAdmin(false);
+        if (currentPage === "admin") setCurrentPage("home");
       }
     });
     return unsub;
   }, []);
 
-  // ================= FETCH =================
-  const fetchData = () => {
-    setLoading(true);
-    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQoSuf820fkc_ob9BS2_zhqJhlwT7pk-2Zlb_S_CWZHqlKI_S7FV_TaBDS_u5ce8qa85mW0sea92BJ_/pub?output=csv";
-    
-    Papa.parse(csvUrl, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const parsedProducts = results.data.map((item, index) => ({
-          id: item.id || `product-${index}`,
-          name: item["Product Name"],
-          price: parseFloat(item["Price"]) || 0,
-          image: item["Image"],
-          category: item["category"],
-          details: item["Details"],
-        }));
-        setProducts(parsedProducts);
-        setLoading(false);
-      },
-      error: (err) => {
-        console.error("CSV Parse Error:", err);
-        setLoading(false);
-      },
-    });
-  };
-
+  // ================= SEED ADMIN (one-time) =================
   useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    seedAdmin("mosaadmagdy0124@gmail.com").catch(() => {});
+  }, []);
+
+  // ================= FETCH PRODUCTS FROM FIRESTORE =================
+  useEffect(() => {
+    setLoading(true);
+    const unsub = subscribeToProducts((firestoreProducts) => {
+      const mapped = firestoreProducts.map((p) => ({
+        id: p.id,
+        name: p.name || "",
+        price: parseFloat(p.price) || 0,
+        discountPrice: p.discountPrice ? parseFloat(p.discountPrice) : null,
+        image: p.image || (p.images && p.images[0]) || "",
+        images: p.images || [],
+        category: p.category || "",
+        details: p.details || p.description || "",
+        description: p.description || p.details || "",
+        stock: p.stock || 0,
+        sizes: p.sizes || [],
+        colors: p.colors || [],
+        featured: p.featured || false,
+      }));
+      setProducts(mapped);
+      setLoading(false);
+    });
+    return unsub;
   }, []);
 
   // ================= SAVE CART & WISHLIST =================
@@ -110,8 +114,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem("wishlist", JSON.stringify(wishlist));
   }, [wishlist]);
-
-
 
   // ================= DERIVED DATA =================
   const categories = useMemo(() => {
@@ -199,8 +201,18 @@ function App() {
     setWishlist((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleOrderConfirmed = (orderData) => {
-    saveLocalOrder(orderData);
+  // ================= CHECKOUT → FIRESTORE =================
+  const handleOrderConfirmed = async (orderData) => {
+    try {
+      const firestoreOrder = {
+        ...orderData,
+        email: user?.email || orderData.email || "",
+        userId: user?.uid || null,
+      };
+      await saveOrderToFirestore(firestoreOrder);
+    } catch (err) {
+      console.error("Failed to save order to Firestore:", err);
+    }
     setCart([]);
     setCurrentPage("orders");
   };
@@ -298,9 +310,12 @@ function App() {
         user={user}
         dbUser={dbUser}
         navigate={setCurrentPage}
+        isAdmin={isAdmin}
       />
 
-      {currentPage === "profile" ? (
+      {currentPage === "admin" && isAdmin ? (
+        <AdminPanel navigate={setCurrentPage} />
+      ) : currentPage === "profile" ? (
         <Profile user={user} dbUser={dbUser} setDbUser={setDbUser} />
       ) : currentPage === "orders" ? (
         <Orders user={user} navigate={setCurrentPage} />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { getUserOrders, getLocalOrders } from "../services/db";
+import { subscribeToUserOrders, getUserOrdersFromFirestore } from "../services/firestoreService";
+import { getLocalOrders } from "../services/db";
 
 function Orders({ user, navigate }) {
   const [orders, setOrders] = useState([]);
@@ -7,31 +8,30 @@ function Orders({ user, navigate }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    let interval;
-    if (user) {
-      fetchOrders(false);
-      interval = setInterval(() => fetchOrders(true), 5000);
+    setLoading(true);
+    if (user?.email) {
+      // Real-time Firestore subscription for signed-in users
+      const unsub = subscribeToUserOrders(user.email, (firestoreOrders) => {
+        // Merge with local orders for backward compatibility
+        const localOrders = getLocalOrders();
+        const allIds = new Set(firestoreOrders.map(o => o.id));
+        const uniqueLocal = localOrders.filter(o => !allIds.has(o.id));
+        const merged = [...firestoreOrders, ...uniqueLocal].sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setOrders(merged);
+        setLoading(false);
+      });
+      return unsub;
     } else {
       // Guest: show local orders only
-      const localOrders = getLocalOrders().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      const localOrders = getLocalOrders().sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
       setOrders(localOrders);
       setLoading(false);
     }
-    return () => clearInterval(interval);
   }, [user]);
-
-  const fetchOrders = async (isPolling = false) => {
-    if (!isPolling) setLoading(true);
-    setError(null);
-    try {
-      const data = await getUserOrders(user.email);
-      setOrders(data);
-    } catch (err) {
-      console.error("fetchOrders Error:", err);
-      if (!isPolling) setError(err.message || "Failed to load orders.");
-    }
-    if (!isPolling) setLoading(false);
-  };
 
   if (loading) {
     return (
@@ -70,13 +70,13 @@ function Orders({ user, navigate }) {
           
           let badgeClass = "bg-secondary";
           if (status === "pending") badgeClass = "bg-warning text-dark";
-          if (status === "processing") badgeClass = "bg-info text-dark";
+          if (status === "confirmed") badgeClass = "bg-info text-dark";
           if (status === "shipped") badgeClass = "bg-primary";
           if (status === "delivered") badgeClass = "bg-success";
           if (status === "cancelled") badgeClass = "bg-danger";
 
           return (
-          <div key={order.createdAt || idx} className="col-12 mb-4">
+          <div key={order.id || order.createdAt || idx} className="col-12 mb-4">
             <div className="card shadow-sm border-0">
               <div className="card-header bg-light d-flex justify-content-between align-items-center py-3 border-0">
                 <div>
@@ -90,7 +90,6 @@ function Orders({ user, navigate }) {
                 </div>
               </div>
               <div className="card-body">
-                {/* WhatsApp order customer info */}
                 {order.customerName && (
                   <div className="mb-3 pb-3 border-bottom border-light">
                     <div className="d-flex flex-wrap gap-3" style={{ fontSize: "0.85rem" }}>
@@ -137,4 +136,3 @@ function Orders({ user, navigate }) {
 }
 
 export default Orders;
-

@@ -17,7 +17,8 @@ function Navbar({
   isMobile,
   user,
   dbUser,
-  navigate
+  navigate,
+  isAdmin
 }) {
   const [inputValue, setInputValue] = useState(search || "");
   const [suggestions, setSuggestions] = useState([]);
@@ -143,7 +144,7 @@ function Navbar({
         {/* Brand */}
         <a className="navbar-brand d-flex align-items-center fw-bold fs-4" href="#" onClick={(e) => { e.preventDefault(); navigate("home"); }}>
           <i className="bi bi-layers-fill text-primary-custom me-2"></i>
-          My<span className="text-primary-custom">Store</span>
+          Vel<span className="text-primary-custom">trix</span>
         </a>
 
         {/* Search & Cart */}
@@ -261,6 +262,14 @@ function Navbar({
                   <button className="dropdown-item py-2" onClick={() => { navigate("profile"); setShowUserMenu(false); }}>
                     <i className="bi bi-person me-2"></i>Profile
                   </button>
+                  {isAdmin && (
+                    <>
+                      <hr className="dropdown-divider" />
+                      <button className="dropdown-item py-2" onClick={() => { navigate("admin"); setShowUserMenu(false); }}>
+                        <i className="bi bi-speedometer2 me-2"></i>Admin Panel
+                      </button>
+                    </>
+                  )}
                   <hr className="dropdown-divider" />
                   <button className="dropdown-item py-2 text-danger" onClick={() => { logout(); setShowUserMenu(false); navigate("home"); }}>
                     <i className="bi bi-box-arrow-right me-2"></i>Logout

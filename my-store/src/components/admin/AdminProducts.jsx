@@ -1,0 +1,304 @@
+import { useState, useEffect } from "react";
+import { subscribeToProducts, addProduct, updateProduct, deleteProduct, uploadProductImage } from "../../services/firestoreService";
+
+function AdminProducts() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  // Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  
+  const initialForm = {
+    name: "",
+    description: "",
+    price: "",
+    discountPrice: "",
+    category: "",
+    stock: "100",
+    featured: false,
+    image: ""
+  };
+  const [formData, setFormData] = useState(initialForm);
+
+  useEffect(() => {
+    const unsub = subscribeToProducts((data) => {
+      setProducts(data);
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  const handleOpenModal = (product = null) => {
+    if (product) {
+      setEditingId(product.id);
+      setFormData({
+        name: product.name || "",
+        description: product.description || product.details || "",
+        price: product.price || "",
+        discountPrice: product.discountPrice || "",
+        category: product.category || "",
+        stock: product.stock !== undefined ? product.stock : "100",
+        featured: product.featured || false,
+        image: product.image || ""
+      });
+    } else {
+      setEditingId(null);
+      setFormData(initialForm);
+    }
+    setImageFile(null);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setFormData(initialForm);
+    setImageFile(null);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    
+    try {
+      let imageUrl = formData.image;
+      
+      const payload = {
+        name: formData.name,
+        description: formData.description,
+        price: Number(formData.price),
+        discountPrice: formData.discountPrice ? Number(formData.discountPrice) : null,
+        category: formData.category,
+        stock: Number(formData.stock),
+        featured: formData.featured,
+      };
+
+      if (editingId) {
+        // Upload image if changed
+        if (imageFile) {
+          const { url } = await uploadProductImage(imageFile, editingId);
+          imageUrl = url;
+        }
+        await updateProduct(editingId, { ...payload, image: imageUrl });
+      } else {
+        // Create first to get ID for image upload folder
+        const tempId = `temp_${Date.now()}`;
+        if (imageFile) {
+          const { url } = await uploadProductImage(imageFile, tempId);
+          imageUrl = url;
+        }
+        await addProduct({ ...payload, image: imageUrl });
+      }
+      
+      handleCloseModal();
+    } catch (err) {
+      console.error("Failed to save product:", err);
+      alert("Error saving product.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this product?")) {
+      try {
+        await deleteProduct(id);
+      } catch (err) {
+        console.error("Delete failed:", err);
+        alert("Error deleting product.");
+      }
+    }
+  };
+
+  const filteredProducts = products.filter(p => 
+    p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.category?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) {
+    return <div className="text-center py-5"><div className="spinner-border text-primary-custom"></div></div>;
+  }
+
+  return (
+    <div>
+      {/* Controls */}
+      <div className="row g-3 mb-4">
+        <div className="col-md-6">
+          <div className="input-group">
+            <span className="input-group-text bg-white border-end-0">
+              <i className="bi bi-search text-muted"></i>
+            </span>
+            <input 
+              type="text" 
+              className="form-control border-start-0 ps-0" 
+              placeholder="Search products..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="col-md-6 text-md-end">
+          <button className="btn btn-primary-custom rounded-pill px-4" onClick={() => handleOpenModal()}>
+            <i className="bi bi-plus-lg me-2"></i>Add Product
+          </button>
+        </div>
+      </div>
+
+      {/* Products Table */}
+      <div className="table-responsive">
+        <table className="table table-hover align-middle admin-table">
+          <thead className="table-light">
+            <tr>
+              <th>Product</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Status</th>
+              <th className="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.map(product => (
+              <tr key={product.id}>
+                <td>
+                  <div className="d-flex align-items-center">
+                    {product.image ? (
+                      <img src={product.image} alt="" width="48" height="48" className="rounded object-fit-cover me-3 border" />
+                    ) : (
+                      <div className="bg-light rounded me-3 d-flex align-items-center justify-content-center border" style={{width: 48, height: 48}}>
+                        <i className="bi bi-image text-muted"></i>
+                      </div>
+                    )}
+                    <div>
+                      <div className="fw-medium text-truncate" style={{maxWidth: "200px"}}>{product.name}</div>
+                      {product.featured && <span className="badge bg-warning text-dark mt-1" style={{fontSize: "0.65rem"}}>FEATURED</span>}
+                    </div>
+                  </div>
+                </td>
+                <td><span className="badge bg-light text-dark border px-2 py-1">{product.category}</span></td>
+                <td>
+                  <div className="fw-bold">{Number(product.price).toLocaleString()} EGP</div>
+                  {product.discountPrice && <small className="text-decoration-line-through text-muted">{Number(product.discountPrice).toLocaleString()} EGP</small>}
+                </td>
+                <td>
+                  <span className={`badge ${product.stock > 0 ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle"} rounded-pill`}>
+                    {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
+                  </span>
+                </td>
+                <td>
+                  <span className="badge bg-success rounded-pill">Active</span>
+                </td>
+                <td className="text-end">
+                  <button className="btn btn-sm btn-light me-2" onClick={() => handleOpenModal(product)} title="Edit">
+                    <i className="bi bi-pencil"></i>
+                  </button>
+                  <button className="btn btn-sm btn-light text-danger" onClick={() => handleDelete(product.id)} title="Delete">
+                    <i className="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {filteredProducts.length === 0 && (
+              <tr><td colSpan="6" className="text-center py-5 text-muted">No products found.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div className="modal-backdrop-custom d-flex align-items-center justify-content-center position-fixed inset-0" style={{zIndex: 1050, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)"}}>
+          <div className="bg-white rounded-4 shadow-lg w-100 mx-3 d-flex flex-column" style={{maxWidth: "800px", maxHeight: "90vh", animation: "modalSlideUp 0.3s ease"}}>
+            
+            <div className="p-4 border-bottom d-flex justify-content-between align-items-center">
+              <h5 className="fw-bold mb-0">{editingId ? "Edit Product" : "Add New Product"}</h5>
+              <button className="btn-close" onClick={handleCloseModal}></button>
+            </div>
+            
+            <div className="p-4 overflow-auto flex-grow-1">
+              <form id="productForm" onSubmit={handleSave}>
+                <div className="row g-4">
+                  
+                  {/* Basic Info */}
+                  <div className="col-12">
+                    <label className="form-label fw-medium">Product Name *</label>
+                    <input type="text" className="form-control" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                  </div>
+                  
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">Category *</label>
+                    <input type="text" className="form-control" required value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} placeholder="e.g. Headphones" />
+                  </div>
+                  
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">Stock Quantity *</label>
+                    <input type="number" className="form-control" required min="0" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} />
+                  </div>
+                  
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">Regular Price (EGP) *</label>
+                    <input type="number" className="form-control" required min="0" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+                  </div>
+                  
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">Discount Price (Optional)</label>
+                    <input type="number" className="form-control" min="0" value={formData.discountPrice} onChange={e => setFormData({...formData, discountPrice: e.target.value})} />
+                  </div>
+                  
+                  <div className="col-12">
+                    <label className="form-label fw-medium">Description</label>
+                    <textarea className="form-control" rows="4" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+                  </div>
+                  
+                  <div className="col-12">
+                    <label className="form-label fw-medium">Product Image</label>
+                    <div className="d-flex align-items-center gap-3">
+                      {(imageFile || formData.image) && (
+                        <img 
+                          src={imageFile ? URL.createObjectURL(imageFile) : formData.image} 
+                          alt="Preview" 
+                          className="rounded border object-fit-cover" 
+                          style={{width: "80px", height: "80px"}} 
+                        />
+                      )}
+                      <input 
+                        type="file" 
+                        className="form-control" 
+                        accept="image/*" 
+                        onChange={e => {
+                          if (e.target.files[0]) setImageFile(e.target.files[0]);
+                        }} 
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="col-12">
+                    <div className="form-check form-switch mt-2">
+                      <input className="form-check-input" type="checkbox" id="featuredSwitch" checked={formData.featured} onChange={e => setFormData({...formData, featured: e.target.checked})} />
+                      <label className="form-check-label ms-2" htmlFor="featuredSwitch">Mark as Featured Product</label>
+                    </div>
+                  </div>
+                  
+                </div>
+              </form>
+            </div>
+            
+            <div className="p-4 border-top d-flex justify-content-end gap-3 bg-light rounded-bottom-4">
+              <button type="button" className="btn btn-outline-secondary rounded-pill px-4" onClick={handleCloseModal} disabled={isSaving}>Cancel</button>
+              <button type="submit" form="productForm" className="btn btn-primary-custom rounded-pill px-4 d-flex align-items-center gap-2" disabled={isSaving}>
+                {isSaving ? <><span className="spinner-border spinner-border-sm"></span> Saving...</> : <><i className="bi bi-check2"></i> Save Product</>}
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default AdminProducts;

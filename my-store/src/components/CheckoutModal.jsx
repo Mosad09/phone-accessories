@@ -74,7 +74,7 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
   };
 
   const buildWhatsAppMessage = () => {
-    let msg = "🛒 *New Order*\n\n";
+    let msg = "🛒 *New Order — Veltrix*\n\n";
     msg += `👤 *Customer:* ${fullName.trim()}\n`;
     msg += `📞 *Phone:* ${phone.trim()}\n`;
     msg += `📍 *Address:* ${address.trim()}\n\n`;
