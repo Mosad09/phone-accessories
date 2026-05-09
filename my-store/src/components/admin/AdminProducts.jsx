@@ -13,6 +13,7 @@ function AdminProducts() {
   const [imageFile, setImageFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState("");
+  const [currentImagePublicId, setCurrentImagePublicId] = useState("");
   
   const initialForm = {
     name: "",
@@ -39,6 +40,7 @@ function AdminProducts() {
     setUploadProgress(0);
     if (product) {
       setEditingId(product.id);
+      setCurrentImagePublicId(product.imagePublicIds?.[0] || "");
       setFormData({
         name: product.name || "",
         description: product.description || product.details || "",
@@ -51,6 +53,7 @@ function AdminProducts() {
       });
     } else {
       setEditingId(null);
+      setCurrentImagePublicId("");
       setFormData(initialForm);
     }
     setImageFile(null);
@@ -64,21 +67,21 @@ function AdminProducts() {
     setImageFile(null);
     setUploadError("");
     setUploadProgress(0);
+    setCurrentImagePublicId("");
   };
 
   const getUploadErrorMessage = (error) => {
     switch (error?.code) {
-      case "storage/unauthorized":
-        return "Upload blocked by Firebase Storage rules. Please verify admin write access.";
-      case "storage/canceled":
+      case "cloudinary/config-missing":
+        return "Cloudinary config is missing. Please set cloud name and upload preset.";
+      case "cloudinary/canceled":
         return "Image upload was canceled.";
-      case "storage/retry-limit-exceeded":
+      case "cloudinary/timeout":
         return "Upload timed out. Check your network and try again.";
-      case "storage/invalid-argument":
-      case "storage/invalid-format":
+      case "cloudinary/invalid-format":
         return "Invalid image file. Please choose a valid JPG, PNG, or WEBP file.";
       default:
-        return "Image upload failed. Please try again.";
+        return error?.message || "Image upload failed. Please try again.";
     }
   };
 
@@ -102,6 +105,7 @@ function AdminProducts() {
     try {
       let imageUrl = formData.image;
       let imageUrls = imageUrl ? [imageUrl] : [];
+      let imagePublicIds = currentImagePublicId ? [currentImagePublicId] : [];
       const fileError = validateImageFile(imageFile);
       if (fileError) {
         throw new Error(fileError);
@@ -119,26 +123,30 @@ function AdminProducts() {
 
       if (editingId) {
         if (imageFile) {
-          const { url } = await uploadProductImage(imageFile, editingId, setUploadProgress);
+          const { url, publicId } = await uploadProductImage(imageFile, editingId, setUploadProgress);
           imageUrl = url;
           imageUrls = [url];
+          imagePublicIds = publicId ? [publicId] : [];
         }
         await updateProduct(editingId, {
           ...payload,
           image: imageUrl,
           images: imageUrls,
+          imagePublicIds,
         });
       } else {
         const productId = `product_${Date.now()}`;
         if (imageFile) {
-          const { url } = await uploadProductImage(imageFile, productId, setUploadProgress);
+          const { url, publicId } = await uploadProductImage(imageFile, productId, setUploadProgress);
           imageUrl = url;
           imageUrls = [url];
+          imagePublicIds = publicId ? [publicId] : [];
         }
         await createProductWithId(productId, {
           ...payload,
           image: imageUrl,
           images: imageUrls,
+          imagePublicIds,
         });
       }
       
@@ -151,10 +159,10 @@ function AdminProducts() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (product) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
-        await deleteProduct(id);
+        await deleteProduct(product);
       } catch (err) {
         console.error("Delete failed:", err);
         alert("Error deleting product.");
@@ -244,7 +252,7 @@ function AdminProducts() {
                   <button className="btn btn-sm btn-light me-2" onClick={() => handleOpenModal(product)} title="Edit">
                     <i className="bi bi-pencil"></i>
                   </button>
-                  <button className="btn btn-sm btn-light text-danger" onClick={() => handleDelete(product.id)} title="Delete">
+                  <button className="btn btn-sm btn-light text-danger" onClick={() => handleDelete(product)} title="Delete">
                     <i className="bi bi-trash"></i>
                   </button>
                 </td>

@@ -1,11 +1,9 @@
-import { db, storage } from "../utils/firebase";
+import { db } from "../utils/firebase";
 import {
   collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, orderBy, where, setDoc, serverTimestamp
 } from "firebase/firestore";
-import {
-  ref, uploadBytesResumable, getDownloadURL, deleteObject
-} from "firebase/storage";
+import { uploadImageToCloudinary, deleteCloudinaryImages } from "./cloudinaryService";
 
 // ===================== PRODUCTS =====================
 
@@ -54,7 +52,13 @@ export const updateProduct = async (productId, data) => {
   });
 };
 
-export const deleteProduct = async (productId) => {
+export const deleteProduct = async (productOrId) => {
+  const productId = typeof productOrId === "string" ? productOrId : productOrId?.id;
+  const publicIds = [
+    ...(productOrId?.imagePublicIds || []),
+    ...(productOrId?.imagesMeta || []).map((item) => item?.publicId).filter(Boolean),
+  ];
+  await deleteCloudinaryImages(publicIds);
   const docRef = doc(db, "products", productId);
   await deleteDoc(docRef);
 };
@@ -62,46 +66,14 @@ export const deleteProduct = async (productId) => {
 // ===================== PRODUCT IMAGES =====================
 
 export const uploadProductImage = async (file, productId, onProgress) => {
-  const safeName = (file?.name || "image")
-    .replace(/[^a-zA-Z0-9._-]/g, "_")
-    .slice(0, 120);
-  const fileName = `${Date.now()}_${safeName}`;
-  const storageRef = ref(storage, `products/${productId}/${fileName}`);
-  const metadata = {
-    contentType: file.type || "application/octet-stream",
-    cacheControl: "public,max-age=31536000,immutable",
-  };
-
-  return new Promise((resolve, reject) => {
-    const uploadTask = uploadBytesResumable(storageRef, file, metadata);
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        if (typeof onProgress === "function" && snapshot.totalBytes > 0) {
-          const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-          onProgress(percent);
-        }
-      },
-      (error) => reject(error),
-      async () => {
-        try {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve({ url, path: uploadTask.snapshot.ref.fullPath });
-        } catch (error) {
-          reject(error);
-        }
-      }
-    );
+  return uploadImageToCloudinary(file, {
+    folder: `products/${productId}`,
+    onProgress,
   });
 };
 
-export const deleteProductImage = async (imagePath) => {
-  try {
-    const storageRef = ref(storage, imagePath);
-    await deleteObject(storageRef);
-  } catch (err) {
-    console.error("Failed to delete image:", err);
-  }
+export const deleteProductImage = async (publicId) => {
+  await deleteCloudinaryImages(publicId ? [publicId] : []);
 };
 
 // ===================== ORDERS =====================
