@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { subscribeToProducts, addProduct, updateProduct, deleteProduct, uploadProductImage } from "../../services/firestoreService";
+import { subscribeToProducts, createProductWithId, updateProduct, deleteProduct, uploadProductImage } from "../../services/firestoreService";
 
 function AdminProducts() {
   const [products, setProducts] = useState([]);
@@ -11,6 +11,8 @@ function AdminProducts() {
   const [editingId, setEditingId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [imageFile, setImageFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState("");
   
   const initialForm = {
     name: "",
@@ -33,6 +35,8 @@ function AdminProducts() {
   }, []);
 
   const handleOpenModal = (product = null) => {
+    setUploadError("");
+    setUploadProgress(0);
     if (product) {
       setEditingId(product.id);
       setFormData({
@@ -58,14 +62,50 @@ function AdminProducts() {
     setEditingId(null);
     setFormData(initialForm);
     setImageFile(null);
+    setUploadError("");
+    setUploadProgress(0);
+  };
+
+  const getUploadErrorMessage = (error) => {
+    switch (error?.code) {
+      case "storage/unauthorized":
+        return "Upload blocked by Firebase Storage rules. Please verify admin write access.";
+      case "storage/canceled":
+        return "Image upload was canceled.";
+      case "storage/retry-limit-exceeded":
+        return "Upload timed out. Check your network and try again.";
+      case "storage/invalid-argument":
+      case "storage/invalid-format":
+        return "Invalid image file. Please choose a valid JPG, PNG, or WEBP file.";
+      default:
+        return "Image upload failed. Please try again.";
+    }
+  };
+
+  const validateImageFile = (file) => {
+    if (!file) return "";
+    if (!file.type?.startsWith("image/")) {
+      return "Only image files are allowed.";
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      return "Image size must be 8MB or less.";
+    }
+    return "";
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+    setUploadError("");
+    setUploadProgress(0);
     
     try {
       let imageUrl = formData.image;
+      let imageUrls = imageUrl ? [imageUrl] : [];
+      const fileError = validateImageFile(imageFile);
+      if (fileError) {
+        throw new Error(fileError);
+      }
       
       const payload = {
         name: formData.name,
@@ -78,26 +118,34 @@ function AdminProducts() {
       };
 
       if (editingId) {
-        // Upload image if changed
         if (imageFile) {
-          const { url } = await uploadProductImage(imageFile, editingId);
+          const { url } = await uploadProductImage(imageFile, editingId, setUploadProgress);
           imageUrl = url;
+          imageUrls = [url];
         }
-        await updateProduct(editingId, { ...payload, image: imageUrl });
+        await updateProduct(editingId, {
+          ...payload,
+          image: imageUrl,
+          images: imageUrls,
+        });
       } else {
-        // Create first to get ID for image upload folder
-        const tempId = `temp_${Date.now()}`;
+        const productId = `product_${Date.now()}`;
         if (imageFile) {
-          const { url } = await uploadProductImage(imageFile, tempId);
+          const { url } = await uploadProductImage(imageFile, productId, setUploadProgress);
           imageUrl = url;
+          imageUrls = [url];
         }
-        await addProduct({ ...payload, image: imageUrl });
+        await createProductWithId(productId, {
+          ...payload,
+          image: imageUrl,
+          images: imageUrls,
+        });
       }
       
       handleCloseModal();
     } catch (err) {
       console.error("Failed to save product:", err);
-      alert("Error saving product.");
+      setUploadError(getUploadErrorMessage(err));
     } finally {
       setIsSaving(false);
     }
@@ -270,10 +318,34 @@ function AdminProducts() {
                         className="form-control" 
                         accept="image/*" 
                         onChange={e => {
-                          if (e.target.files[0]) setImageFile(e.target.files[0]);
+                          const file = e.target.files[0];
+                          const validationError = validateImageFile(file);
+                          setUploadError(validationError);
+                          if (!validationError && file) {
+                            setImageFile(file);
+                            setUploadProgress(0);
+                          } else {
+                            setImageFile(null);
+                          }
                         }} 
                       />
                     </div>
+                    {isSaving && imageFile && (
+                      <div className="mt-2">
+                        <div className="progress" role="progressbar" aria-label="Upload progress" aria-valuenow={uploadProgress} aria-valuemin="0" aria-valuemax="100">
+                          <div className="progress-bar progress-bar-striped progress-bar-animated" style={{ width: `${uploadProgress}%` }}>
+                            {uploadProgress}%
+                          </div>
+                        </div>
+                        <small className="text-muted">Uploading image to Firebase Storage...</small>
+                      </div>
+                    )}
+                    {uploadError && (
+                      <div className="alert alert-danger mt-2 mb-0 py-2" role="alert">
+                        <i className="bi bi-exclamation-triangle me-2"></i>
+                        {uploadError}
+                      </div>
+                    )}
                   </div>
                   
                   <div className="col-12">
