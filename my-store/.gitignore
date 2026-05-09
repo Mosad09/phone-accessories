@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment (Vite) – keep secrets out of git; see .env.example
+.env
+.env.*
+!.env.example
