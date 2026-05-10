@@ -28,24 +28,37 @@ function Navbar({
   const userMenuButtonRef = useRef(null);
   const userMenuRef = useRef(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [userMenuPosition, setUserMenuPosition] = useState({ top: 0, right: 12 });
+  const [userMenuPosition, setUserMenuPosition] = useState({ top: 0, left: 12 });
 
   const updateUserMenuPosition = useCallback(() => {
     const button = userMenuButtonRef.current;
     if (!button) return;
 
     const rect = button.getBoundingClientRect();
-    const menuWidth = userMenuRef.current?.offsetWidth || 220;
+    const menuWidth = userMenuRef.current?.offsetWidth || 240;
+    const menuHeight = userMenuRef.current?.offsetHeight || 260;
     const viewportPadding = 12;
-    const preferredRight = window.innerWidth - rect.right;
-    const maxRight = window.innerWidth - menuWidth - viewportPadding;
-    const safeRight = Math.min(Math.max(viewportPadding, preferredRight), Math.max(viewportPadding, maxRight));
+    const maxLeft = window.innerWidth - menuWidth - viewportPadding;
+    const maxTop = window.innerHeight - menuHeight - viewportPadding;
+    const preferredLeft = rect.right - menuWidth;
+    const preferredTop = rect.bottom + 8;
+    const safeLeft = Math.min(Math.max(viewportPadding, preferredLeft), Math.max(viewportPadding, maxLeft));
+    const safeTop = Math.min(Math.max(viewportPadding, preferredTop), Math.max(viewportPadding, maxTop));
 
-    setUserMenuPosition({
-      top: Math.round(rect.bottom + 8),
-      right: Math.round(safeRight),
-    });
+    const nextPosition = {
+      top: Math.round(safeTop),
+      left: Math.round(safeLeft),
+    };
+
+    setUserMenuPosition((prev) => (
+      prev.top === nextPosition.top && prev.left === nextPosition.left ? prev : nextPosition
+    ));
   }, []);
+
+  const setUserMenuNode = useCallback((node) => {
+    userMenuRef.current = node;
+    if (node) requestAnimationFrame(updateUserMenuPosition);
+  }, [updateUserMenuPosition]);
 
   // Close user menu on outside click
   useEffect(() => {
@@ -290,33 +303,34 @@ function Navbar({
                 <span className="d-none d-md-inline">{dbUser?.name || user.displayName || "User"}</span>
               </button>
               {showUserMenu && createPortal(
-                <div
-                  ref={userMenuRef}
-                  className="dropdown-menu dropdown-menu-end shadow-sm show navbar-user-menu"
-                  style={{
-                    position: "fixed",
-                    top: `${userMenuPosition.top}px`,
-                    right: `${userMenuPosition.right}px`,
-                  }}
-                >
-                  <button className="dropdown-item py-2" onClick={() => { navigate("orders"); setShowUserMenu(false); }}>
-                    <i className="bi bi-box-seam me-2"></i>My Orders
-                  </button>
-                  <button className="dropdown-item py-2" onClick={() => { navigate("profile"); setShowUserMenu(false); }}>
-                    <i className="bi bi-person me-2"></i>Profile
-                  </button>
-                  {isAdmin && (
-                    <>
-                      <hr className="dropdown-divider" />
-                      <button className="dropdown-item py-2" onClick={() => { navigate("admin"); setShowUserMenu(false); }}>
-                        <i className="bi bi-speedometer2 me-2"></i>Admin Panel
-                      </button>
-                    </>
-                  )}
-                  <hr className="dropdown-divider" />
-                  <button className="dropdown-item py-2 text-danger" onClick={() => { logout(); setShowUserMenu(false); navigate("home"); }}>
-                    <i className="bi bi-box-arrow-right me-2"></i>Logout
-                  </button>
+                <div className="navbar-user-menu-layer">
+                  <div
+                    ref={setUserMenuNode}
+                    className="navbar-user-menu"
+                    style={{
+                      top: `${userMenuPosition.top}px`,
+                      left: `${userMenuPosition.left}px`,
+                    }}
+                  >
+                    <button className="dropdown-item py-2" onClick={() => { navigate("orders"); setShowUserMenu(false); }}>
+                      <i className="bi bi-box-seam me-2"></i>My Orders
+                    </button>
+                    <button className="dropdown-item py-2" onClick={() => { navigate("profile"); setShowUserMenu(false); }}>
+                      <i className="bi bi-person me-2"></i>Profile
+                    </button>
+                    {isAdmin && (
+                      <>
+                        <hr className="dropdown-divider" />
+                        <button className="dropdown-item py-2" onClick={() => { navigate("admin"); setShowUserMenu(false); }}>
+                          <i className="bi bi-speedometer2 me-2"></i>Admin Panel
+                        </button>
+                      </>
+                    )}
+                    <hr className="dropdown-divider" />
+                    <button className="dropdown-item py-2 text-danger" onClick={() => { logout(); setShowUserMenu(false); navigate("home"); }}>
+                      <i className="bi bi-box-arrow-right me-2"></i>Logout
+                    </button>
+                  </div>
                 </div>,
                 document.body
               )}
