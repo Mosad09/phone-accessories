@@ -35,7 +35,7 @@ function Navbar({
     if (!button) return;
 
     const rect = button.getBoundingClientRect();
-    const menuWidth = userMenuRef.current?.offsetWidth || 240;
+    const menuWidth = userMenuRef.current?.offsetWidth || 200;
     const menuHeight = userMenuRef.current?.offsetHeight || 260;
     const viewportPadding = 12;
     const maxLeft = window.innerWidth - menuWidth - viewportPadding;
@@ -312,23 +312,23 @@ function Navbar({
                       left: `${userMenuPosition.left}px`,
                     }}
                   >
-                    <button className="dropdown-item py-2" onClick={() => { navigate("orders"); setShowUserMenu(false); }}>
-                      <i className="bi bi-box-seam me-2"></i>My Orders
+                    <button className="dropdown-item" onClick={() => { navigate("orders"); setShowUserMenu(false); }}>
+                      <i className="bi bi-box-seam"></i>My Orders
                     </button>
-                    <button className="dropdown-item py-2" onClick={() => { navigate("profile"); setShowUserMenu(false); }}>
-                      <i className="bi bi-person me-2"></i>Profile
+                    <button className="dropdown-item" onClick={() => { navigate("profile"); setShowUserMenu(false); }}>
+                      <i className="bi bi-person"></i>Profile
                     </button>
                     {isAdmin && (
                       <>
                         <hr className="dropdown-divider" />
-                        <button className="dropdown-item py-2" onClick={() => { navigate("admin"); setShowUserMenu(false); }}>
-                          <i className="bi bi-speedometer2 me-2"></i>Admin Panel
+                        <button className="dropdown-item admin-item" onClick={() => { navigate("admin"); setShowUserMenu(false); }}>
+                          <i className="bi bi-speedometer2"></i>Admin Panel
                         </button>
                       </>
                     )}
                     <hr className="dropdown-divider" />
-                    <button className="dropdown-item py-2 text-danger" onClick={() => { logout(); setShowUserMenu(false); navigate("home"); }}>
-                      <i className="bi bi-box-arrow-right me-2"></i>Logout
+                    <button className="dropdown-item logout-item" onClick={() => { logout(); setShowUserMenu(false); navigate("home"); }}>
+                      <i className="bi bi-box-arrow-right"></i>Logout
                     </button>
                   </div>
                 </div>,
