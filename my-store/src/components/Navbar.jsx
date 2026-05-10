@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { getSuggestions } from "../utils/searchEngine";
 import { loginWithGoogle, logout } from "../utils/firebase";
-function toProperCase(str) {
-  if (!str) return "";
-  return str.toLowerCase().split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-}
 
 function Navbar({
   cartCount,
@@ -28,18 +25,52 @@ function Navbar({
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
   const userDropdownRef = useRef(null);
+  const userMenuButtonRef = useRef(null);
+  const userMenuRef = useRef(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [userMenuPosition, setUserMenuPosition] = useState({ top: 0, right: 12 });
+
+  const updateUserMenuPosition = useCallback(() => {
+    const button = userMenuButtonRef.current;
+    if (!button) return;
+
+    const rect = button.getBoundingClientRect();
+    const menuWidth = userMenuRef.current?.offsetWidth || 220;
+    const viewportPadding = 12;
+    const preferredRight = window.innerWidth - rect.right;
+    const maxRight = window.innerWidth - menuWidth - viewportPadding;
+    const safeRight = Math.min(Math.max(viewportPadding, preferredRight), Math.max(viewportPadding, maxRight));
+
+    setUserMenuPosition({
+      top: Math.round(rect.bottom + 8),
+      right: Math.round(safeRight),
+    });
+  }, []);
 
   // Close user menu on outside click
   useEffect(() => {
     const handleClick = (e) => {
-      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target)) {
+      const clickedToggle = userDropdownRef.current?.contains(e.target);
+      const clickedMenu = userMenuRef.current?.contains(e.target);
+      if (!clickedToggle && !clickedMenu) {
         setShowUserMenu(false);
       }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  useEffect(() => {
+    if (!showUserMenu) return undefined;
+
+    updateUserMenuPosition();
+    window.addEventListener("resize", updateUserMenuPosition);
+    window.addEventListener("scroll", updateUserMenuPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateUserMenuPosition);
+      window.removeEventListener("scroll", updateUserMenuPosition, true);
+    };
+  }, [showUserMenu, updateUserMenuPosition]);
 
   // Sync external search → input
   useEffect(() => {
@@ -244,8 +275,12 @@ function Navbar({
           {user ? (
             <div className="position-relative" ref={userDropdownRef}>
               <button 
+                ref={userMenuButtonRef}
                 className="btn btn-outline-primary-custom d-flex align-items-center gap-2 rounded-pill px-3" 
-                onClick={() => setShowUserMenu(!showUserMenu)}
+                onClick={() => {
+                  updateUserMenuPosition();
+                  setShowUserMenu(!showUserMenu);
+                }}
               >
                 {user.photoURL ? (
                   <img src={user.photoURL} alt="User" width="24" height="24" className="rounded-circle" />
@@ -254,8 +289,16 @@ function Navbar({
                 )}
                 <span className="d-none d-md-inline">{dbUser?.name || user.displayName || "User"}</span>
               </button>
-              {showUserMenu && (
-                <div className="dropdown-menu dropdown-menu-end shadow-sm show" style={{ position: "absolute", right: 0, top: "100%", marginTop: "0.5rem" }}>
+              {showUserMenu && createPortal(
+                <div
+                  ref={userMenuRef}
+                  className="dropdown-menu dropdown-menu-end shadow-sm show navbar-user-menu"
+                  style={{
+                    position: "fixed",
+                    top: `${userMenuPosition.top}px`,
+                    right: `${userMenuPosition.right}px`,
+                  }}
+                >
                   <button className="dropdown-item py-2" onClick={() => { navigate("orders"); setShowUserMenu(false); }}>
                     <i className="bi bi-box-seam me-2"></i>My Orders
                   </button>
@@ -274,7 +317,8 @@ function Navbar({
                   <button className="dropdown-item py-2 text-danger" onClick={() => { logout(); setShowUserMenu(false); navigate("home"); }}>
                     <i className="bi bi-box-arrow-right me-2"></i>Logout
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           ) : (
