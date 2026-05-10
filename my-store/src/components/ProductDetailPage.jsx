@@ -25,6 +25,12 @@ function normalizeProduct(product) {
   };
 }
 
+const PRODUCT_TRANSITION_MS = 180;
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function toArray(value) {
   if (!value) return [];
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -37,6 +43,51 @@ function toArray(value) {
       .map(([key, val]) => `${key}: ${val}`);
   }
   return [];
+}
+
+function ProductDetailSkeleton() {
+  return (
+    <div className="container mt-4 mb-5 product-detail-shell">
+      <div className="skeleton detail-skeleton-line detail-skeleton-breadcrumb mb-4"></div>
+      <div className="row g-4 align-items-start">
+        <div className="col-lg-6">
+          <div className="product-card p-3">
+            <div className="skeleton detail-skeleton-image"></div>
+            <div className="d-flex gap-2 mt-3">
+              {[...Array(4)].map((_, index) => (
+                <div key={index} className="skeleton detail-skeleton-thumb"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="col-lg-6">
+          <div className="product-card p-4 detail-skeleton-panel">
+            <div className="skeleton detail-skeleton-line detail-skeleton-badge"></div>
+            <div className="skeleton detail-skeleton-line detail-skeleton-title"></div>
+            <div className="skeleton detail-skeleton-line detail-skeleton-price"></div>
+            <div className="skeleton detail-skeleton-line w-100"></div>
+            <div className="skeleton detail-skeleton-line w-75"></div>
+            <div className="skeleton detail-skeleton-line w-50"></div>
+            <div className="d-flex justify-content-between align-items-center mt-auto pt-4">
+              <div className="skeleton detail-skeleton-qty"></div>
+              <div className="d-flex gap-2">
+                <div className="skeleton detail-skeleton-action"></div>
+                <div className="skeleton detail-skeleton-action"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="skeleton detail-skeleton-line detail-skeleton-related-title mt-5"></div>
+      <div className="row mt-3">
+        {[...Array(4)].map((_, index) => (
+          <div key={index} className="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
+            <div className="skeleton skeleton-card"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function ProductDetailPage({
@@ -58,22 +109,35 @@ function ProductDetailPage({
     let cancelled = false;
 
     const loadProduct = async () => {
+      const startedAt = Date.now();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setLoading(true);
+      setProduct(null);
+      setActiveImage("");
+      setQuantity(1);
+      setToast({ show: false, message: "" });
       setNotFound(false);
+
+      const revealProduct = async (nextProduct) => {
+        const elapsed = Date.now() - startedAt;
+        if (elapsed < PRODUCT_TRANSITION_MS) {
+          await wait(PRODUCT_TRANSITION_MS - elapsed);
+        }
+        if (cancelled) return;
+        setProduct(nextProduct);
+        setActiveImage(nextProduct.image);
+        setQuantity(1);
+      };
 
       const productFromState = products.find((item) => item.id === id);
       if (productFromState) {
         const normalized = normalizeProduct(productFromState);
-        if (!cancelled) {
-          setProduct(normalized);
-          setActiveImage(normalized.image);
-          setQuantity(1);
-          setLoading(false);
-        }
+        await revealProduct(normalized);
+        if (!cancelled) setLoading(false);
         return;
       }
 
       try {
-        setLoading(true);
         const firestoreProduct = await getProductById(id);
         if (cancelled) return;
 
@@ -84,9 +148,7 @@ function ProductDetailPage({
         }
 
         const normalized = normalizeProduct(firestoreProduct);
-        setProduct(normalized);
-        setActiveImage(normalized.image);
-        setQuantity(1);
+        await revealProduct(normalized);
       } catch (error) {
         console.error("Failed to load product:", error);
         if (!cancelled) {
@@ -134,13 +196,7 @@ function ProductDetailPage({
   }, [product, products]);
 
   if (loading) {
-    return (
-      <div className="container py-5 text-center">
-        <div className="spinner-border text-primary-custom" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
+    return <ProductDetailSkeleton />;
   }
 
   if (notFound || !product) {
@@ -163,7 +219,7 @@ function ProductDetailPage({
   const canIncreaseQuantity = inStock && quantity < product.stock;
 
   return (
-    <div className="container mt-4 mb-5">
+    <div className="container mt-4 mb-5 product-detail-shell" key={product.id}>
       <div className="d-flex align-items-center mb-4">
         <button className="btn btn-link text-decoration-none text-muted-custom p-0 me-3" onClick={() => navigate("home")}>
           <i className="bi bi-arrow-left fs-4"></i>
@@ -171,12 +227,12 @@ function ProductDetailPage({
         <span className="text-muted-custom">Product Details</span>
       </div>
 
-      <div className="row g-4 align-items-start">
+      <div className="row g-4 align-items-start product-detail-content">
         <div className="col-lg-6">
-          <div className="product-card p-3">
+          <div className="product-card p-3 product-detail-media">
             <div className="product-img-wrapper rounded-3 border-0" style={{ minHeight: "300px" }}>
               {activeImage ? (
-                <img src={activeImage} alt={product.name || "Product image"} className="product-img img-fluid" style={{ height: "240px" }} />
+                <img src={activeImage} alt={product.name || "Product image"} className="product-img img-fluid product-detail-main-image" style={{ height: "240px" }} />
               ) : (
                 <i className="bi bi-image text-muted-custom" style={{ fontSize: "4rem" }}></i>
               )}
@@ -200,16 +256,16 @@ function ProductDetailPage({
         </div>
 
         <div className="col-lg-6">
-          <div className="product-card p-4 h-100">
+          <div className="product-card p-4 h-100 product-detail-info">
             <div className="d-flex flex-column h-100">
               <div className="d-flex gap-2 flex-wrap align-items-center mb-2">
                 {product.category && <span className="category-badge mb-0">{product.category}</span>}
                 {product.featured && <span className="badge bg-warning text-dark rounded-pill px-3 py-2">Featured</span>}
               </div>
 
-              <h1 className="fw-bold mb-3 fs-3">{product.name || "Untitled Product"}</h1>
+              <h1 className="fw-bold mb-3 fs-3 product-detail-title">{product.name || "Untitled Product"}</h1>
 
-              <div className="d-flex align-items-baseline gap-3 mb-3">
+              <div className="d-flex align-items-baseline gap-3 mb-3 product-detail-price-row">
                 <span className="product-price">EGP {formatPrice(currentPrice)}</span>
                 {product.discountPrice && (
                   <span className="text-muted-custom text-decoration-line-through">
@@ -223,7 +279,7 @@ function ProductDetailPage({
               </span>
 
               {product.description && (
-                <div className="mb-3">
+                <div className="mb-3 product-detail-description">
                   <h5 className="fw-bold">Description</h5>
                   <p className="text-muted-custom lh-lg mb-0">{product.description}</p>
                 </div>
@@ -313,7 +369,7 @@ function ProductDetailPage({
         </div>
       </div>
 
-      <section className="mt-5">
+      <section className="mt-5 product-detail-related">
         <div className="d-flex align-items-center justify-content-between mb-3">
           <h3 className="fw-bold mb-0">Related Products</h3>
           {product.category && <span className="text-muted-custom small">{product.category}</span>}

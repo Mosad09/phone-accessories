@@ -525,6 +525,109 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 16px;
 }
 
+/* Product details transition */
+.product-detail-shell {
+  scroll-margin-top: 84px;
+}
+
+.product-detail-content {
+  animation: detailPageIn 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.product-detail-media,
+.product-detail-info,
+.product-detail-related,
+.product-detail-title,
+.product-detail-price-row,
+.product-detail-description {
+  animation: detailBlockIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.product-detail-info {
+  animation-delay: 45ms;
+}
+
+.product-detail-title {
+  animation-delay: 80ms;
+}
+
+.product-detail-price-row {
+  animation-delay: 115ms;
+}
+
+.product-detail-description {
+  animation-delay: 150ms;
+}
+
+.product-detail-related {
+  animation-delay: 185ms;
+}
+
+.product-detail-main-image {
+  animation: detailImageIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.detail-skeleton-image {
+  width: 100%;
+  min-height: 300px;
+  border-radius: 12px;
+}
+
+.detail-skeleton-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+}
+
+.detail-skeleton-panel {
+  min-height: 430px;
+}
+
+.detail-skeleton-line {
+  height: 16px;
+  border-radius: 999px;
+}
+
+.detail-skeleton-breadcrumb {
+  width: 170px;
+  height: 18px;
+}
+
+.detail-skeleton-badge {
+  width: 105px;
+  height: 26px;
+  margin-bottom: 18px;
+}
+
+.detail-skeleton-title {
+  width: min(420px, 88%);
+  height: 34px;
+  margin-bottom: 18px;
+}
+
+.detail-skeleton-price {
+  width: 180px;
+  height: 30px;
+  margin-bottom: 28px;
+}
+
+.detail-skeleton-qty {
+  width: 118px;
+  height: 42px;
+  border-radius: 8px;
+}
+
+.detail-skeleton-action {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+}
+
+.detail-skeleton-related-title {
+  width: 240px;
+  height: 28px;
+}
+
 /* Animations */
 @keyframes fadeIn {
   to { opacity: 1; }
@@ -535,6 +638,37 @@ h1, h2, h3, h4, h5, h6 {
 @keyframes shine {
   to {
     background-position-x: -200%;
+  }
+}
+
+@keyframes detailPageIn {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes detailBlockIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes detailImageIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

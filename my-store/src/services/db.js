@@ -1,20 +1,50 @@
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { db } from "../utils/firebase";
+
 const API_URL = "/api/orders";
+
+const buildAuthProfile = (user) => ({
+  name: user.displayName || "",
+  email: user.email || "",
+  address: "",
+  phone: "",
+  createdAt: new Date().toISOString(),
+});
 
 export const syncUser = async (user) => {
   if (!user) return null;
-  const storedProfile = localStorage.getItem(`profile_${user.uid}`);
-  if (storedProfile) {
-    return JSON.parse(storedProfile);
+  const localKey = `profile_${user.uid}`;
+  const authProfile = buildAuthProfile(user);
+  const storedProfile = localStorage.getItem(localKey);
+  const localProfile = storedProfile ? JSON.parse(storedProfile) : {};
+
+  let firestoreProfile = {};
+  try {
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+    firestoreProfile = userSnap.exists() ? userSnap.data() : {};
+    await setDoc(userRef, {
+      ...authProfile,
+      ...firestoreProfile,
+      ...localProfile,
+      name: localProfile.name || firestoreProfile.name || authProfile.name || "Unknown User",
+      email: localProfile.email || firestoreProfile.email || authProfile.email,
+      updatedAt: serverTimestamp(),
+      ...(!firestoreProfile.createdAt ? { createdAt: serverTimestamp() } : {}),
+    }, { merge: true });
+  } catch (error) {
+    console.warn("Unable to sync user profile with Firestore:", error);
   }
-  const newUser = {
-    name: user.displayName || "Unknown User",
-    email: user.email || "",
-    address: "",
-    phone: "",
-    createdAt: new Date().toISOString(),
+
+  const syncedProfile = {
+    ...authProfile,
+    ...firestoreProfile,
+    ...localProfile,
+    name: localProfile.name || firestoreProfile.name || authProfile.name || "Unknown User",
+    email: localProfile.email || firestoreProfile.email || authProfile.email,
   };
-  localStorage.setItem(`profile_${user.uid}`, JSON.stringify(newUser));
-  return newUser;
+  localStorage.setItem(localKey, JSON.stringify(syncedProfile));
+  return syncedProfile;
 };
 
 export const getUserProfile = async (uid) => {
@@ -23,9 +53,19 @@ export const getUserProfile = async (uid) => {
 };
 
 export const updateUserProfile = async (uid, data) => {
-  const storedProfile = localStorage.getItem(`profile_${uid}`) ? JSON.parse(localStorage.getItem(`profile_${uid}`)) : {};
-  const updated = { ...storedProfile, ...data };
-  localStorage.setItem(`profile_${uid}`, JSON.stringify(updated));
+  const localKey = `profile_${uid}`;
+  const storedProfile = localStorage.getItem(localKey) ? JSON.parse(localStorage.getItem(localKey)) : {};
+  const updated = { ...storedProfile, ...data, updatedAt: new Date().toISOString() };
+  localStorage.setItem(localKey, JSON.stringify(updated));
+  try {
+    await setDoc(doc(db, "users", uid), {
+      ...data,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    console.warn("Unable to update user profile in Firestore:", error);
+  }
+  return updated;
 };
 
 export const createOrder = async (orderData) => {

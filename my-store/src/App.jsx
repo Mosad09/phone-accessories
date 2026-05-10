@@ -17,7 +17,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import Profile from "./components/Profile";
 import Orders from "./components/Orders";
 import AdminPanel from "./components/admin/AdminPanel";
-import { syncUser } from "./services/db";
+import { syncUser, updateUserProfile } from "./services/db";
 import { subscribeToProducts, saveOrderToFirestore, isUserAdmin } from "./services/firestoreService";
 
 const getPageFromPath = (pathname) => {
@@ -227,9 +227,19 @@ function App() {
   // ================= CHECKOUT → FIRESTORE =================
   const handleOrderConfirmed = async (orderData) => {
     try {
+      if (user?.uid) {
+        const updatedProfile = await updateUserProfile(user.uid, {
+          name: orderData.customerName || dbUser?.name || user.displayName || "",
+          phone: orderData.phone || "",
+          email: orderData.email || user.email || "",
+          address: orderData.address || "",
+        });
+        setDbUser(updatedProfile);
+      }
+
       const firestoreOrder = {
         ...orderData,
-        email: user?.email || orderData.email || "",
+        email: orderData.email || user?.email || "",
         userId: user?.uid || null,
       };
       await saveOrderToFirestore(firestoreOrder);
