@@ -1,5 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { subscribeToProducts, createProductWithId, updateProduct, deleteProduct, uploadProductImage } from "../../services/firestoreService";
+
+const initialForm = {
+  name: "",
+  description: "",
+  price: "",
+  discountPrice: "",
+  category: "",
+  stock: "100",
+  featured: false,
+  image: ""
+};
 
 function AdminProducts() {
   const [products, setProducts] = useState([]);
@@ -14,17 +26,9 @@ function AdminProducts() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState("");
   const [currentImagePublicId, setCurrentImagePublicId] = useState("");
+  const modalRef = useRef(null);
+  const previouslyFocusedElementRef = useRef(null);
   
-  const initialForm = {
-    name: "",
-    description: "",
-    price: "",
-    discountPrice: "",
-    category: "",
-    stock: "100",
-    featured: false,
-    image: ""
-  };
   const [formData, setFormData] = useState(initialForm);
 
   useEffect(() => {
@@ -60,7 +64,7 @@ function AdminProducts() {
     setShowModal(true);
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setShowModal(false);
     setEditingId(null);
     setFormData(initialForm);
@@ -68,7 +72,69 @@ function AdminProducts() {
     setUploadError("");
     setUploadProgress(0);
     setCurrentImagePublicId("");
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!showModal) return undefined;
+
+    previouslyFocusedElementRef.current = document.activeElement;
+    const originalBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusableSelector = [
+      "a[href]",
+      "button:not([disabled])",
+      "textarea:not([disabled])",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "[tabindex]:not([tabindex='-1'])",
+    ].join(",");
+
+    const focusFirstControl = () => {
+      const focusableElements = Array.from(
+        modalRef.current?.querySelectorAll(focusableSelector) || []
+      );
+      (focusableElements[0] || modalRef.current)?.focus();
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !isSaving) {
+        handleCloseModal();
+        return;
+      }
+
+      if (e.key !== "Tab") return;
+
+      const focusableElements = Array.from(
+        modalRef.current?.querySelectorAll(focusableSelector) || []
+      );
+      if (focusableElements.length === 0) {
+        e.preventDefault();
+        modalRef.current?.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    requestAnimationFrame(focusFirstControl);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = originalBodyOverflow;
+      previouslyFocusedElementRef.current?.focus?.();
+    };
+  }, [showModal, isSaving, handleCloseModal]);
 
   const getUploadErrorMessage = (error) => {
     switch (error?.code) {
@@ -284,12 +350,20 @@ function AdminProducts() {
       </div>
 
       {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="modal-backdrop-custom d-flex align-items-center justify-content-center position-fixed inset-0" style={{zIndex: 1050, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)"}}>
-          <div className="bg-white rounded-4 shadow-lg w-100 mx-3 d-flex flex-column" style={{maxWidth: "800px", maxHeight: "90vh", animation: "modalSlideUp 0.3s ease"}}>
+      {showModal && createPortal(
+        <div className="modal-backdrop-custom d-flex align-items-center justify-content-center position-fixed inset-0" style={{background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)"}}>
+          <div
+            ref={modalRef}
+            className="modal-content-custom bg-white rounded-4 shadow-lg w-100 mx-3 d-flex flex-column"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="productModalTitle"
+            tabIndex="-1"
+            style={{maxWidth: "800px", maxHeight: "90vh", animation: "modalSlideUp 0.3s ease"}}
+          >
             
             <div className="p-4 border-bottom d-flex justify-content-between align-items-center">
-              <h5 className="fw-bold mb-0">{editingId ? "Edit Product" : "Add New Product"}</h5>
+              <h5 id="productModalTitle" className="fw-bold mb-0">{editingId ? "Edit Product" : "Add New Product"}</h5>
               <button className="btn-close" onClick={handleCloseModal}></button>
             </div>
             
@@ -399,7 +473,8 @@ function AdminProducts() {
             </div>
             
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

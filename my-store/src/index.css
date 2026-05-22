@@ -593,7 +593,7 @@ h1, h2, h3, h4, h5, h6 {
 .navbar-user-menu-layer {
   position: fixed;
   inset: 0;
-  z-index: 2147483647;
+  z-index: 2010;
   pointer-events: none;
   overflow: visible;
   contain: none;
@@ -601,7 +601,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .navbar-user-menu {
   position: fixed;
-  z-index: 2147483647;
+  z-index: 2010;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -646,6 +646,12 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: none;
 }
 
+.navbar-user-menu .dropdown-item:focus:not(:hover):not(.active-route),
+.navbar-user-menu .dropdown-item:active:not(:hover):not(.active-route) {
+  background: transparent;
+  color: var(--text-main);
+}
+
 .navbar-user-menu .dropdown-item i {
   font-size: 1.1rem;
   color: var(--text-muted);
@@ -674,7 +680,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .navbar-user-menu .dropdown-item.admin-item {
   color: var(--primary-color);
-  background: rgba(99, 102, 241, 0.05);
+  background: transparent;
 }
 
 .navbar-user-menu .dropdown-item.admin-item i {
@@ -2024,10 +2030,15 @@ h1, h2, h3, h4, h5, h6 {
   inset: 0;
   background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(4px);
-  z-index: 1050;
+  z-index: 3000;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.modal-content-custom {
+  position: relative;
+  z-index: 3010;
 }
 
 @keyframes modalSlideUp {

@@ -33,12 +33,20 @@ function Navbar({
 
   // Active route detection
   const activeRoute = (() => {
-    if (!pathname || pathname === "/" || pathname === "/home") return "home";
-    if (pathname.startsWith("/orders")) return "orders";
-    if (pathname.startsWith("/profile")) return "profile";
-    if (pathname.startsWith("/admin")) return "admin";
+    const normalizedPath = (pathname || "/").split(/[?#]/)[0].replace(/\/+$/g, "") || "/";
+    if (normalizedPath === "/" || normalizedPath === "/home") return "home";
+    if (normalizedPath === "/orders") return "orders";
+    if (normalizedPath === "/profile") return "profile";
+    if (normalizedPath === "/admin" || normalizedPath.startsWith("/admin/")) return "admin";
     return "";
   })();
+
+  const getMenuItemClassName = (route, extraClass = "") => {
+    const classes = ["dropdown-item"];
+    if (extraClass) classes.push(extraClass);
+    if (activeRoute === route) classes.push("active-route");
+    return classes.join(" ");
+  };
 
   const updateUserMenuPosition = useCallback(() => {
     const button = userMenuButtonRef.current;
@@ -332,7 +340,9 @@ function Navbar({
                   >
                     {/* Home */}
                     <button
-                      className={`dropdown-item${activeRoute === "home" ? " active-route" : ""}`}
+                      type="button"
+                      className={getMenuItemClassName("home")}
+                      aria-current={activeRoute === "home" ? "page" : undefined}
                       onClick={(e) => handleMenuNav(e, "home")}
                     >
                       <i className="bi bi-house"></i>
@@ -341,7 +351,9 @@ function Navbar({
 
                     {/* My Orders */}
                     <button
-                      className={`dropdown-item${activeRoute === "orders" ? " active-route" : ""}`}
+                      type="button"
+                      className={getMenuItemClassName("orders")}
+                      aria-current={activeRoute === "orders" ? "page" : undefined}
                       onClick={(e) => handleMenuNav(e, "orders")}
                     >
                       <i className="bi bi-box-seam"></i>
@@ -350,7 +362,9 @@ function Navbar({
 
                     {/* Profile */}
                     <button
-                      className={`dropdown-item${activeRoute === "profile" ? " active-route" : ""}`}
+                      type="button"
+                      className={getMenuItemClassName("profile")}
+                      aria-current={activeRoute === "profile" ? "page" : undefined}
                       onClick={(e) => handleMenuNav(e, "profile")}
                     >
                       <i className="bi bi-person"></i>
@@ -362,7 +376,9 @@ function Navbar({
                       <>
                         <hr className="dropdown-divider" />
                         <button
-                          className={`dropdown-item admin-item${activeRoute === "admin" ? " active-route" : ""}`}
+                          type="button"
+                          className={getMenuItemClassName("admin", "admin-item")}
+                          aria-current={activeRoute === "admin" ? "page" : undefined}
                           onClick={(e) => handleMenuNav(e, "admin")}
                         >
                           <i className="bi bi-speedometer2"></i>
