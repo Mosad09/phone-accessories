@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import ProductCard from "./ProductCard";
 import { getProductById } from "../services/firestoreService";
+import { toTitleCase } from "../utils/textUtils";
 
 function formatPrice(price) {
   if (!price && price !== 0) return "0";
@@ -12,6 +14,7 @@ function normalizeProduct(product) {
   if (!product) return null;
   return {
     ...product,
+    name: toTitleCase(product.name || ""),
     price: parseFloat(product.price) || 0,
     discountPrice: product.discountPrice ? parseFloat(product.discountPrice) : null,
     image: product.image || product.images?.[0] || "",
@@ -104,6 +107,9 @@ function ProductDetailPage({
   const [activeImage, setActiveImage] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [toast, setToast] = useState({ show: false, message: "" });
+  const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,6 +181,37 @@ function ProductDetailPage({
     return () => clearTimeout(timer);
   }, [toast.show]);
 
+  const handleMouseMove = (e) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    setZoomPos({ x, y });
+  };
+
+  const handleMouseEnter = () => {
+    setIsZoomed(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsZoomed(false);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setIsLightboxOpen(false);
+      }
+    };
+    if (isLightboxOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [isLightboxOpen]);
+
   const gallery = useMemo(() => {
     if (!product) return [];
     return [...new Set([product.image, ...product.images].filter(Boolean))];
@@ -230,9 +267,30 @@ function ProductDetailPage({
       <div className="row g-4 align-items-start product-detail-content">
         <div className="col-lg-6">
           <div className="product-card p-3 product-detail-media">
-            <div className="product-img-wrapper rounded-3 border-0" style={{ minHeight: "300px" }}>
+            <div
+              className="product-img-wrapper rounded-3 border-0"
+              style={{
+                minHeight: "300px",
+                position: "relative",
+                overflow: "hidden",
+                cursor: "zoom-in"
+              }}
+              onMouseMove={handleMouseMove}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={() => setIsLightboxOpen(true)}
+            >
               {activeImage ? (
-                <img src={activeImage} alt={product.name || "Product image"} className="product-img img-fluid product-detail-main-image" style={{ height: "240px" }} />
+                <img
+                  src={activeImage}
+                  alt={product.name || "Product image"}
+                  className="product-img img-fluid product-detail-main-image"
+                  style={{
+                    height: "240px",
+                    transform: isZoomed ? "scale(1.8)" : "scale(1)",
+                    transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
+                  }}
+                />
               ) : (
                 <i className="bi bi-image text-muted-custom" style={{ fontSize: "4rem" }}></i>
               )}
@@ -395,6 +453,18 @@ function ProductDetailPage({
       <div className={`cart-toast ${toast.show ? "show" : ""}`}>
         {toast.message}
       </div>
+
+      {isLightboxOpen && createPortal(
+        <div className={`lightbox-modal ${isLightboxOpen ? "show" : ""}`} onClick={() => setIsLightboxOpen(false)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <button className="lightbox-close" onClick={() => setIsLightboxOpen(false)} aria-label="Close preview">
+              <i className="bi bi-x-lg"></i>
+            </button>
+            <img src={activeImage} alt={product.name} className="lightbox-img" />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

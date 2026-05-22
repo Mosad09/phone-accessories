@@ -1,15 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-
-/** Convert a string to Proper Case (each word capitalized) */
-function toProperCase(str) {
-  if (!str) return "";
-  return str
-    .toLowerCase()
-    .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
+import { toTitleCase } from "../utils/textUtils";
 
 /** Format price with commas */
 function formatPrice(price) {
@@ -53,7 +44,7 @@ function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
     }
   };
 
-  const properName = toProperCase(product.name);
+  const properName = toTitleCase(product.name);
 
   return (
     <div className="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">

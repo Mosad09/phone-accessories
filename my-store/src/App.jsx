@@ -19,6 +19,7 @@ import Orders from "./components/Orders";
 import AdminPanel from "./components/admin/AdminPanel";
 import { syncUser, updateUserProfile } from "./services/db";
 import { subscribeToProducts, saveOrderToFirestore, isUserAdmin } from "./services/firestoreService";
+import { toTitleCase } from "./utils/textUtils";
 
 const getPageFromPath = (pathname) => {
   const normalized = pathname.replace(/^\/+|\/+$/g, "");
@@ -105,11 +106,10 @@ function App() {
 
   // ================= FETCH PRODUCTS FROM FIRESTORE =================
   useEffect(() => {
-    setLoading(true);
     const unsub = subscribeToProducts((firestoreProducts) => {
       const mapped = firestoreProducts.map((p) => ({
         id: p.id,
-        name: p.name || "",
+        name: toTitleCase(p.name || ""),
         price: parseFloat(p.price) || 0,
         discountPrice: p.discountPrice ? parseFloat(p.discountPrice) : null,
         image: p.image || (p.images && p.images[0]) || "",

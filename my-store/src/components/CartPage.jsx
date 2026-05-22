@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import CheckoutModal from "./CheckoutModal";
+import { toTitleCase } from "../utils/textUtils";
 
 function formatPrice(price) {
   if (!price && price !== 0) return "0";
@@ -39,14 +40,14 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, 
                         <div className="col-auto">
                           <img
                             src={item.image}
-                            alt={item.name}
+                            alt={toTitleCase(item.name)}
                             className="rounded"
                             style={{ width: "80px", height: "80px", objectFit: "cover" }}
                           />
                         </div>
                         <div className="col">
-                          <h6 className="mb-1 text-truncate" title={item.name}>
-                            {item.name}
+                          <h6 className="mb-1 text-truncate" title={toTitleCase(item.name)}>
+                            {toTitleCase(item.name)}
                           </h6>
                           <div className="text-primary-custom fw-bold">{formatPrice(item.price)} EGP</div>
                         </div>

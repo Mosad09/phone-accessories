@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { toTitleCase } from "../utils/textUtils";
 
 function formatPrice(price) {
   if (!price && price !== 0) return "0";
@@ -47,7 +48,7 @@ function WishlistPage({ wishlist, removeFromWishlist, addToCart, navigate }) {
                 <div className="product-img-wrapper" style={{ cursor: 'default' }}>
                   <img
                     src={item.image}
-                    alt={item.name}
+                    alt={toTitleCase(item.name)}
                     className="card-img-top product-img img-fluid"
                   />
                   <button
@@ -71,8 +72,8 @@ function WishlistPage({ wishlist, removeFromWishlist, addToCart, navigate }) {
                   </button>
                 </div>
                 <div className="card-body d-flex flex-column p-3">
-                  <h5 className="card-title fw-bold fs-6 mb-1 text-truncate" title={item.name}>
-                    {item.name}
+                  <h5 className="card-title fw-bold fs-6 mb-1 text-truncate" title={toTitleCase(item.name)}>
+                    {toTitleCase(item.name)}
                   </h5>
                   {item.category && (
                     <span className="text-muted small mb-2 d-block">{item.category}</span>
