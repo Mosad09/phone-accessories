@@ -15,7 +15,8 @@ function Navbar({
   user,
   dbUser,
   navigate,
-  isAdmin
+  isAdmin,
+  pathname,
 }) {
   const [inputValue, setInputValue] = useState(search || "");
   const [suggestions, setSuggestions] = useState([]);
@@ -29,6 +30,15 @@ function Navbar({
   const userMenuRef = useRef(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [userMenuPosition, setUserMenuPosition] = useState({ top: 0, left: 12 });
+
+  // Active route detection
+  const activeRoute = (() => {
+    if (!pathname || pathname === "/" || pathname === "/home") return "home";
+    if (pathname.startsWith("/orders")) return "orders";
+    if (pathname.startsWith("/profile")) return "profile";
+    if (pathname.startsWith("/admin")) return "admin";
+    return "";
+  })();
 
   const updateUserMenuPosition = useCallback(() => {
     const button = userMenuButtonRef.current;
@@ -182,6 +192,13 @@ function Navbar({
     inputRef.current?.focus();
   };
 
+  // Close menu, blur button, then navigate — prevents sticky focus highlight
+  const handleMenuNav = (e, page) => {
+    e.currentTarget.blur();
+    setShowUserMenu(false);
+    navigate(page);
+  };
+
   return (
     <nav className="navbar navbar-expand-lg navbar-custom py-3">
       <div className="container flex-wrap">
@@ -287,9 +304,9 @@ function Navbar({
           {/* Auth */}
           {user ? (
             <div className="position-relative" ref={userDropdownRef}>
-              <button 
+              <button
                 ref={userMenuButtonRef}
-                className="btn btn-outline-primary-custom d-flex align-items-center gap-2 rounded-pill px-3" 
+                className="btn btn-outline-primary-custom d-flex align-items-center gap-2 rounded-pill px-3"
                 onClick={() => {
                   updateUserMenuPosition();
                   setShowUserMenu(!showUserMenu);
@@ -302,6 +319,7 @@ function Navbar({
                 )}
                 <span className="d-none d-md-inline">{dbUser?.name || user.displayName || "User"}</span>
               </button>
+
               {showUserMenu && createPortal(
                 <div className="navbar-user-menu-layer">
                   <div
@@ -312,23 +330,58 @@ function Navbar({
                       left: `${userMenuPosition.left}px`,
                     }}
                   >
-                    <button className="dropdown-item" onClick={() => { navigate("orders"); setShowUserMenu(false); }}>
-                      <i className="bi bi-box-seam"></i>My Orders
+                    {/* Home */}
+                    <button
+                      className={`dropdown-item${activeRoute === "home" ? " active-route" : ""}`}
+                      onClick={(e) => handleMenuNav(e, "home")}
+                    >
+                      <i className="bi bi-house"></i>
+                      Home
                     </button>
-                    <button className="dropdown-item" onClick={() => { navigate("profile"); setShowUserMenu(false); }}>
-                      <i className="bi bi-person"></i>Profile
+
+                    {/* My Orders */}
+                    <button
+                      className={`dropdown-item${activeRoute === "orders" ? " active-route" : ""}`}
+                      onClick={(e) => handleMenuNav(e, "orders")}
+                    >
+                      <i className="bi bi-box-seam"></i>
+                      My Orders
                     </button>
+
+                    {/* Profile */}
+                    <button
+                      className={`dropdown-item${activeRoute === "profile" ? " active-route" : ""}`}
+                      onClick={(e) => handleMenuNav(e, "profile")}
+                    >
+                      <i className="bi bi-person"></i>
+                      Profile
+                    </button>
+
+                    {/* Admin Panel */}
                     {isAdmin && (
                       <>
                         <hr className="dropdown-divider" />
-                        <button className="dropdown-item admin-item" onClick={() => { navigate("admin"); setShowUserMenu(false); }}>
-                          <i className="bi bi-speedometer2"></i>Admin Panel
+                        <button
+                          className={`dropdown-item admin-item${activeRoute === "admin" ? " active-route" : ""}`}
+                          onClick={(e) => handleMenuNav(e, "admin")}
+                        >
+                          <i className="bi bi-speedometer2"></i>
+                          Admin Panel
                         </button>
                       </>
                     )}
                     <hr className="dropdown-divider" />
-                    <button className="dropdown-item logout-item" onClick={() => { logout(); setShowUserMenu(false); navigate("home"); }}>
-                      <i className="bi bi-box-arrow-right"></i>Logout
+                    <button
+                      className="dropdown-item logout-item"
+                      onClick={(e) => {
+                        e.currentTarget.blur();
+                        setShowUserMenu(false);
+                        logout();
+                        navigate("home");
+                      }}
+                    >
+                      <i className="bi bi-box-arrow-right"></i>
+                      Logout
                     </button>
                   </div>
                 </div>,

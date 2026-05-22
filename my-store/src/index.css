@@ -637,7 +637,13 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 10px;
   font-size: 0.9rem;
   font-weight: 500;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  outline: none;
+}
+
+.navbar-user-menu .dropdown-item:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .navbar-user-menu .dropdown-item i {
@@ -646,13 +652,23 @@ h1, h2, h3, h4, h5, h6 {
   transition: color 0.2s ease;
 }
 
-.navbar-user-menu .dropdown-item:hover,
-.navbar-user-menu .dropdown-item:focus {
-  background: var(--bg-color);
+/* Hover — temporary only, disappears immediately on mouse leave */
+.navbar-user-menu .dropdown-item:hover {
+  background: #F5F7FF;
   color: var(--primary-color);
 }
 
 .navbar-user-menu .dropdown-item:hover i {
+  color: var(--primary-color);
+}
+
+/* Active route — only the current page stays highlighted */
+.navbar-user-menu .dropdown-item.active-route {
+  background: #EEF2FF;
+  color: var(--primary-color);
+}
+
+.navbar-user-menu .dropdown-item.active-route i {
   color: var(--primary-color);
 }
 
@@ -666,7 +682,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .navbar-user-menu .dropdown-item.admin-item:hover {
-  background: rgba(99, 102, 241, 0.1);
+  background: #EEF2FF;
+}
+
+.navbar-user-menu .dropdown-item.admin-item.active-route {
+  background: rgba(99, 102, 241, 0.12);
 }
 
 .navbar-user-menu .dropdown-item.logout-item {

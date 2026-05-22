@@ -344,6 +344,7 @@ function App() {
         dbUser={dbUser}
         navigate={setCurrentPage}
         isAdmin={isAdmin}
+        pathname={location.pathname}
       />
 
       <Routes>
