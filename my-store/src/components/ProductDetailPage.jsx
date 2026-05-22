@@ -15,7 +15,9 @@ function normalizeProduct(product) {
   return {
     ...product,
     name: toTitleCase(product.name || ""),
-    price: parseFloat(product.price) || 0,
+    costPrice: parseFloat(product.costPrice) || 0,
+    sellPrice: parseFloat(product.sellPrice ?? product.price) || 0,
+    price: parseFloat(product.sellPrice ?? product.price) || 0,
     discountPrice: product.discountPrice ? parseFloat(product.discountPrice) : null,
     image: product.image || product.images?.[0] || "",
     images: product.images || (product.image ? [product.image] : []),

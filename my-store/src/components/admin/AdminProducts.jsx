@@ -5,6 +5,7 @@ import { subscribeToProducts, createProductWithId, updateProduct, deleteProduct,
 const initialForm = {
   name: "",
   description: "",
+  costPrice: "",
   price: "",
   discountPrice: "",
   category: "",
@@ -48,7 +49,8 @@ function AdminProducts() {
       setFormData({
         name: product.name || "",
         description: product.description || product.details || "",
-        price: product.price || "",
+        costPrice: product.costPrice || "",
+        price: product.sellPrice || product.price || "",
         discountPrice: product.discountPrice || "",
         category: product.category || "",
         stock: product.stock !== undefined ? product.stock : "100",
@@ -182,6 +184,8 @@ function AdminProducts() {
       const payload = {
         name: formData.name,
         description: formData.description,
+        costPrice: Number(formData.costPrice) || 0,
+        sellPrice: Number(formData.price),
         price: Number(formData.price),
         discountPrice: formData.discountPrice ? Number(formData.discountPrice) : null,
         category: formData.category,
@@ -295,7 +299,8 @@ function AdminProducts() {
             <tr>
               <th>Product</th>
               <th>Category</th>
-              <th>Price</th>
+              <th>Cost</th>
+              <th>Sell Price</th>
               <th>Stock</th>
               <th>Status</th>
               <th className="text-end">Actions</th>
@@ -321,6 +326,9 @@ function AdminProducts() {
                 </td>
                 <td><span className="badge bg-light text-dark border px-2 py-1">{product.category}</span></td>
                 <td>
+                  <div className="fw-medium">{Number(product.costPrice || 0).toLocaleString()} EGP</div>
+                </td>
+                <td>
                   <div className="fw-bold">{Number(product.price).toLocaleString()} EGP</div>
                   {product.discountPrice && <small className="text-decoration-line-through text-muted">{Number(product.discountPrice).toLocaleString()} EGP</small>}
                 </td>
@@ -343,7 +351,7 @@ function AdminProducts() {
               </tr>
             ))}
             {filteredProducts.length === 0 && (
-              <tr><td colSpan="6" className="text-center py-5 text-muted">No products found.</td></tr>
+              <tr><td colSpan="7" className="text-center py-5 text-muted">No products found.</td></tr>
             )}
           </tbody>
         </table>
@@ -388,13 +396,25 @@ function AdminProducts() {
                   </div>
                   
                   <div className="col-md-6">
-                    <label className="form-label fw-medium">Regular Price (EGP) *</label>
+                    <label className="form-label fw-medium">Cost Price (EGP)</label>
+                    <input type="number" className="form-control" min="0" value={formData.costPrice} onChange={e => setFormData({...formData, costPrice: e.target.value})} />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">Sell Price (EGP) *</label>
                     <input type="number" className="form-control" required min="0" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
                   </div>
                   
                   <div className="col-md-6">
                     <label className="form-label fw-medium">Discount Price (Optional)</label>
                     <input type="number" className="form-control" min="0" value={formData.discountPrice} onChange={e => setFormData({...formData, discountPrice: e.target.value})} />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">Profit per Item</label>
+                    <div className="form-control bg-light">
+                      {(Number(formData.price || 0) - Number(formData.costPrice || 0)).toLocaleString()} EGP
+                    </div>
                   </div>
                   
                   <div className="col-12">

@@ -4,6 +4,7 @@ import {
   onSnapshot, query, orderBy, where, setDoc, serverTimestamp
 } from "firebase/firestore";
 import { uploadImageToCloudinary, deleteCloudinaryImages } from "./cloudinaryService";
+import { buildProductsById, calculateOrderProfit } from "../utils/profitAnalytics";
 
 // ===================== PRODUCTS =====================
 
@@ -152,10 +153,39 @@ export const updateOrderStatus = async (firestoreDocId, status) => {
     throw new Error("Invalid Firestore document id for order update.");
   }
   const docRef = doc(db, "orders", firestoreDocId);
-  await updateDoc(docRef, {
+  const payload = {
     status,
     updatedAt: serverTimestamp(),
-  });
+  };
+
+  if (String(status).toLowerCase() === "delivered") {
+    const [orderSnapshot, productsSnapshot] = await Promise.all([
+      getDoc(docRef),
+      getDocs(productsCol),
+    ]);
+    const order = orderSnapshot.exists()
+      ? normalizeOrderFromSnapshot({ id: orderSnapshot.id, data: () => orderSnapshot.data() })
+      : { items: [] };
+    const products = productsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const profitSummary = calculateOrderProfit(order, buildProductsById(products));
+
+    payload.deliveredAt = serverTimestamp();
+    payload.revenue = profitSummary.revenue;
+    payload.cost = profitSummary.cost;
+    payload.profit = profitSummary.profit;
+    payload.profitItems = profitSummary.items.map((item) => ({
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      sellPrice: item.sellPrice,
+      costPrice: item.costPrice,
+      revenue: item.revenue,
+      cost: item.cost,
+      profit: item.profit,
+    }));
+  }
+
+  await updateDoc(docRef, payload);
 };
 
 // ===================== ADMIN =====================

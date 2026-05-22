@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AdminProducts from "./AdminProducts";
 import AdminOrders from "./AdminOrders";
+import AdminAnalytics from "./AdminAnalytics";
 
 function AdminPanel({ navigate }) {
   const [activeTab, setActiveTab] = useState("products");
@@ -40,12 +41,22 @@ function AdminPanel({ navigate }) {
             Orders
           </button>
         </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link rounded-pill px-4 fw-medium ${activeTab === "analytics" ? "active bg-primary-custom text-white" : "bg-light text-dark"}`}
+            onClick={() => setActiveTab("analytics")}
+          >
+            <i className="bi bi-graph-up-arrow me-2"></i>
+            Analytics
+          </button>
+        </li>
       </ul>
 
       {/* Content */}
       <div className="admin-content-card bg-white p-4 rounded-4 shadow-sm border border-light">
         {activeTab === "products" && <AdminProducts />}
         {activeTab === "orders" && <AdminOrders />}
+        {activeTab === "analytics" && <AdminAnalytics />}
       </div>
     </div>
   );

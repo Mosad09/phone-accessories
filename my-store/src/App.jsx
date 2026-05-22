@@ -110,7 +110,9 @@ function App() {
       const mapped = firestoreProducts.map((p) => ({
         id: p.id,
         name: toTitleCase(p.name || ""),
-        price: parseFloat(p.price) || 0,
+        costPrice: parseFloat(p.costPrice) || 0,
+        sellPrice: parseFloat(p.sellPrice ?? p.price) || 0,
+        price: parseFloat(p.sellPrice ?? p.price) || 0,
         discountPrice: p.discountPrice ? parseFloat(p.discountPrice) : null,
         image: p.image || (p.images && p.images[0]) || "",
         images: p.images || [],
