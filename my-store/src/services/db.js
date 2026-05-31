@@ -1,4 +1,4 @@
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc } from "@firebase/firestore";
 import { db } from "../utils/firebase";
 
 const API_URL = "/api/orders";

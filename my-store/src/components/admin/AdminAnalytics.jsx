@@ -23,6 +23,20 @@ function endOfDay(date) {
   return next;
 }
 
+function startOfCurrentWeek(date) {
+  const next = startOfDay(date);
+  const day = next.getDay();
+  const daysSinceMonday = day === 0 ? 6 : day - 1;
+  next.setDate(next.getDate() - daysSinceMonday);
+  return next;
+}
+
+function startOfCurrentMonth(date) {
+  const next = startOfDay(date);
+  next.setDate(1);
+  return next;
+}
+
 function parseSearchRange(searchTerm) {
   const search = searchTerm.toLowerCase();
   const now = new Date();
@@ -186,8 +200,11 @@ function AdminAnalytics() {
     const deliveredItems = deliveredOrders.flatMap((order) =>
       calculateOrderProfit(order, productsById).items
     );
-    const todayKey = formatDateKey(new Date());
+    const now = new Date();
+    const todayKey = formatDateKey(now);
     const todayItems = deliveredItems.filter((item) => item.dateKey === todayKey);
+    const weeklyItems = deliveredItems.filter((item) => item.date >= startOfCurrentWeek(now));
+    const monthlyItems = deliveredItems.filter((item) => item.date >= startOfCurrentMonth(now));
     const range = getRange(dateRange, customStart, customEnd, searchTerm);
     const searchProductTerms = getSearchProductTerms(searchTerm);
     const filteredItems = deliveredItems.filter((item) => {
@@ -215,6 +232,8 @@ function AdminAnalytics() {
     const totals = sumItems(filteredItems);
     const totalProfit = sumItems(deliveredItems).profit;
     const todayProfit = sumItems(todayItems).profit;
+    const weeklyProfit = sumItems(weeklyItems).profit;
+    const monthlyProfit = sumItems(monthlyItems).profit;
     const deliveredOrderIds = new Set(filteredItems.map((item) => item.orderId).filter(Boolean));
 
     const byProduct = aggregateBy(filteredItems, (item) => item.productName)
@@ -228,6 +247,8 @@ function AdminAnalytics() {
       totals,
       totalProfit,
       todayProfit,
+      weeklyProfit,
+      monthlyProfit,
       deliveredOrdersCount: deliveredOrderIds.size,
       byProduct,
       byDay,
@@ -296,11 +317,13 @@ function AdminAnalytics() {
       )}
 
       <div className="row g-3 mb-4">
-        <MetricCard label="Total Profit" value={formatMoney(analytics.totalProfit)} icon="bi-graph-up-arrow" />
-        <MetricCard label="Today's Profit" value={formatMoney(analytics.todayProfit)} icon="bi-calendar-check" tone="text-success" />
-        <MetricCard label="Revenue" value={formatMoney(analytics.totals.revenue)} icon="bi-cash-stack" />
+        <MetricCard label="Total Revenue" value={formatMoney(analytics.totals.revenue)} icon="bi-cash-stack" />
+        <MetricCard label="Total Cost" value={formatMoney(analytics.totals.cost)} icon="bi-receipt-cutoff" tone="text-danger" />
         <MetricCard label="Net Profit" value={formatMoney(analytics.totals.profit)} icon="bi-piggy-bank" tone="text-success" />
-        <MetricCard label="Cost" value={formatMoney(analytics.totals.cost)} icon="bi-receipt-cutoff" tone="text-danger" />
+        <MetricCard label="All-Time Profit" value={formatMoney(analytics.totalProfit)} icon="bi-graph-up-arrow" />
+        <MetricCard label="Today's Profit" value={formatMoney(analytics.todayProfit)} icon="bi-calendar-check" tone="text-success" />
+        <MetricCard label="Weekly Profit" value={formatMoney(analytics.weeklyProfit)} icon="bi-calendar-week" tone="text-success" />
+        <MetricCard label="Monthly Profit" value={formatMoney(analytics.monthlyProfit)} icon="bi-calendar3" tone="text-success" />
         <MetricCard label="Delivered Orders" value={analytics.deliveredOrdersCount.toLocaleString("en-EG")} icon="bi-bag-check" />
         <MetricCard label="Items Sold" value={analytics.totals.quantity.toLocaleString("en-EG")} icon="bi-box-seam" />
         <MetricCard label="Top Product Profit" value={formatMoney(analytics.topProducts[0]?.profit || 0)} icon="bi-trophy" tone="text-warning" />

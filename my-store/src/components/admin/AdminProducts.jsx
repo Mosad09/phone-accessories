@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { subscribeToProducts, createProductWithId, updateProduct, deleteProduct, uploadProductImage } from "../../services/firestoreService";
-import { analyzeProductImage } from "../../services/aiProductInfoService";
 
 const initialForm = {
   name: "",
@@ -13,13 +12,6 @@ const initialForm = {
   stock: "100",
   featured: false,
   image: ""
-};
-
-const applyAiValue = (currentValue, valueWhenAnalysisStarted, generatedValue) => {
-  if (currentValue !== valueWhenAnalysisStarted) {
-    return currentValue;
-  }
-  return generatedValue || currentValue;
 };
 
 function AdminProducts() {
@@ -34,11 +26,9 @@ function AdminProducts() {
   const [imageFiles, setImageFiles] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState("");
-  const [aiInfoStatus, setAiInfoStatus] = useState({ isAnalyzing: false, error: "" });
   const [currentImagePublicId, setCurrentImagePublicId] = useState("");
   const modalRef = useRef(null);
   const previouslyFocusedElementRef = useRef(null);
-  const aiAnalysisRequestIdRef = useRef(0);
   
   const [formData, setFormData] = useState(initialForm);
 
@@ -52,8 +42,6 @@ function AdminProducts() {
 
   const handleOpenModal = (product = null) => {
     setUploadError("");
-    setAiInfoStatus({ isAnalyzing: false, error: "" });
-    aiAnalysisRequestIdRef.current += 1;
     setUploadProgress(0);
     if (product) {
       setEditingId(product.id);
@@ -79,13 +67,11 @@ function AdminProducts() {
   };
 
   const handleCloseModal = useCallback(() => {
-    aiAnalysisRequestIdRef.current += 1;
     setShowModal(false);
     setEditingId(null);
     setFormData(initialForm);
     setImageFiles([]);
     setUploadError("");
-    setAiInfoStatus({ isAnalyzing: false, error: "" });
     setUploadProgress(0);
     setCurrentImagePublicId("");
   }, []);
@@ -178,59 +164,6 @@ function AdminProducts() {
     return "";
   };
 
-  const getKnownCategories = useCallback(() => {
-    const categories = products
-      .map((product) => product.category?.trim())
-      .filter(Boolean);
-    return Array.from(new Set(categories)).slice(0, 20);
-  }, [products]);
-
-  const runAiProductInfoAnalysis = useCallback(async ({ file, imageUrl }) => {
-    if (!file && !imageUrl) return;
-
-    const requestId = aiAnalysisRequestIdRef.current + 1;
-    aiAnalysisRequestIdRef.current = requestId;
-    const formDataWhenAnalysisStarted = formData;
-
-    setAiInfoStatus({ isAnalyzing: true, error: "" });
-
-    try {
-      const suggestions = await analyzeProductImage({
-        file,
-        imageUrl,
-        categories: getKnownCategories(),
-      });
-
-      if (aiAnalysisRequestIdRef.current !== requestId) return;
-
-      setFormData((currentFormData) => ({
-        ...currentFormData,
-        name: applyAiValue(
-          currentFormData.name,
-          formDataWhenAnalysisStarted.name,
-          suggestions.name
-        ),
-        category: applyAiValue(
-          currentFormData.category,
-          formDataWhenAnalysisStarted.category,
-          suggestions.category
-        ),
-        description: applyAiValue(
-          currentFormData.description,
-          formDataWhenAnalysisStarted.description,
-          suggestions.description
-        ),
-      }));
-      setAiInfoStatus({ isAnalyzing: false, error: "" });
-    } catch (error) {
-      if (aiAnalysisRequestIdRef.current !== requestId) return;
-      setAiInfoStatus({
-        isAnalyzing: false,
-        error: error?.message || "AI image analysis failed.",
-      });
-    }
-  }, [formData, getKnownCategories]);
-
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -312,13 +245,6 @@ function AdminProducts() {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleRegenerateAiInfo = () => {
-    runAiProductInfoAnalysis({
-      file: imageFiles[0],
-      imageUrl: imageFiles[0] ? "" : formData.image,
-    });
   };
 
   const handleDelete = async (product) => {
@@ -516,40 +442,15 @@ function AdminProducts() {
                           const files = Array.from(e.target.files || []);
                           const validationError = files.map(validateImageFile).find(Boolean) || "";
                           setUploadError(validationError);
-                          setAiInfoStatus({ isAnalyzing: false, error: "" });
                           if (!validationError && files.length > 0) {
                             setImageFiles(files);
                             setUploadProgress(0);
-                            runAiProductInfoAnalysis({ file: files[0], imageUrl: "" });
                           } else {
-                            aiAnalysisRequestIdRef.current += 1;
                             setImageFiles([]);
                           }
                         }} 
                       />
                     </div>
-                    {(imageFiles[0] || formData.image) && (
-                      <div className="d-flex align-items-center gap-2 mt-2 flex-wrap">
-                        <button
-                          type="button"
-                          className="btn btn-outline-secondary btn-sm rounded-pill"
-                          onClick={handleRegenerateAiInfo}
-                          disabled={isSaving || aiInfoStatus.isAnalyzing}
-                        >
-                          <i className="bi bi-arrow-clockwise me-1"></i>
-                          Regenerate AI Info
-                        </button>
-                        {aiInfoStatus.isAnalyzing && (
-                          <small className="text-muted d-flex align-items-center gap-2">
-                            <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
-                            Analyzing image...
-                          </small>
-                        )}
-                      </div>
-                    )}
-                    {aiInfoStatus.error && (
-                      <small className="text-danger d-block mt-2">{aiInfoStatus.error}</small>
-                    )}
                     {isSaving && imageFiles.length > 0 && (
                       <div className="mt-2">
                         <div className="progress" role="progressbar" aria-label="Upload progress" aria-valuenow={uploadProgress} aria-valuemin="0" aria-valuemax="100">

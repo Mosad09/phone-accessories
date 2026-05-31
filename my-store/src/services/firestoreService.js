@@ -2,7 +2,7 @@ import { db } from "../utils/firebase";
 import {
   collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, orderBy, where, setDoc, serverTimestamp
-} from "firebase/firestore";
+} from "@firebase/firestore";
 import { uploadImageToCloudinary, deleteCloudinaryImages } from "./cloudinaryService";
 import { buildProductsById, calculateOrderProfit } from "../utils/profitAnalytics";
 

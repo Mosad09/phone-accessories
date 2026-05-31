@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@firebase/app": "^0.14.11",
+    "@firebase/auth": "^1.13.0",
+    "@firebase/firestore": "^4.14.0",
     "axios": "^1.15.2",
-    "firebase": "^12.12.1",
     "nouislider": "^15.8.1",
     "papaparse": "^5.5.3",
     "puppeteer": "^24.42.0",

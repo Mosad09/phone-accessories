@@ -1,8 +1,4 @@
 {
-  "functions": {
-    "source": "functions",
-    "runtime": "nodejs20"
-  },
   "hosting": {
     "public": "my-store/dist",
     "ignore": [
@@ -11,14 +7,6 @@
       "**/node_modules/**"
     ],
     "rewrites": [
-      {
-        "source": "/api/analyze-product-image",
-        "function": {
-          "functionId": "analyzeProductImage",
-          "region": "us-central1",
-          "pinTag": true
-        }
-      },
       {
         "source": "**",
         "destination": "/index.html"

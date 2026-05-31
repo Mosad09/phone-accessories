@@ -13,7 +13,7 @@ import Pagination from "./components/Pagination";
 import useUrlState from "./hooks/useUrlState";
 import { filterAndSort } from "./utils/searchEngine";
 import { auth } from "./utils/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged } from "@firebase/auth";
 import Profile from "./components/Profile";
 import Orders from "./components/Orders";
 import AdminPanel from "./components/admin/AdminPanel";
