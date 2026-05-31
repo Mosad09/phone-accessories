@@ -2730,3 +2730,73 @@ body.dark-mode .noUi-tooltip {
   background: #f4f7fb;
   color: #111827;
 }
+
+body.dark-mode .add-btn-sm {
+  background: var(--surface-inset) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-main) !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.26);
+}
+
+body.dark-mode .add-btn-sm i {
+  color: currentColor;
+  opacity: 1;
+}
+
+body.dark-mode .add-btn-sm.btn-primary-custom {
+  background: rgba(99, 102, 241, 0.14) !important;
+  border-color: rgba(129, 140, 248, 0.34) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .add-btn-sm.btn-outline-danger {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(248, 113, 113, 0.34) !important;
+  color: #f87171 !important;
+}
+
+body.dark-mode .add-btn-sm.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  border-color: rgba(248, 113, 113, 0.5) !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .add-btn-sm:hover {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  filter: brightness(1.08);
+}
+
+body.dark-mode .add-btn-sm.btn-primary-custom:hover {
+  background: rgba(99, 102, 241, 0.24) !important;
+  border-color: rgba(165, 180, 252, 0.52) !important;
+  box-shadow: 0 10px 26px rgba(99, 102, 241, 0.22), 0 6px 18px rgba(0, 0, 0, 0.3);
+  filter: none;
+}
+
+body.dark-mode .admin-table .btn-light,
+body.dark-mode .admin-table .btn-link,
+body.dark-mode .table .btn-light,
+body.dark-mode .table .btn-link {
+  background: var(--surface-inset) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main) !important;
+}
+
+body.dark-mode .admin-table .btn-light i,
+body.dark-mode .admin-table .btn-link i,
+body.dark-mode .table .btn-light i,
+body.dark-mode .table .btn-link i {
+  color: currentColor;
+  opacity: 1;
+}
+
+body.dark-mode .admin-table .btn-light:hover,
+body.dark-mode .admin-table .btn-link:hover,
+body.dark-mode .table .btn-light:hover,
+body.dark-mode .table .btn-link:hover {
+  background: var(--dark-hover) !important;
+  border-color: rgba(99, 102, 241, 0.42) !important;
+  color: #dfe3ff !important;
+}
