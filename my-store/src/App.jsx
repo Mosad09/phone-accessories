@@ -42,6 +42,24 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
+  // ================= THEME STATE =================
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem("theme") || "light";
+  });
+
+  useEffect(() => {
+    if (theme === "dark") {
+      document.body.classList.add("dark-mode");
+    } else {
+      document.body.classList.remove("dark-mode");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }, []);
+
   // Sync URL with state
   const setCurrentPage = useCallback((page) => {
     setCurrentPageState(page);
@@ -347,6 +365,8 @@ function App() {
         navigate={setCurrentPage}
         isAdmin={isAdmin}
         pathname={location.pathname}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
 
       <Routes>
@@ -365,12 +385,12 @@ function App() {
         <Route
           path="*"
           element={isAuthChecking ? (
-        <div className="container py-5 text-center">
-          <div className="spinner-border text-primary-custom" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-        </div>
-      ) : currentPage === "admin" ? (
+            <div className="container py-5 text-center">
+              <div className="spinner-border text-primary-custom" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          ) : currentPage === "admin" ? (
         isAdmin ? (
           <AdminPanel navigate={setCurrentPage} />
         ) : (

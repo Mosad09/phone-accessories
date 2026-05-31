@@ -236,6 +236,11 @@ function AdminAnalytics() {
     };
   }, [orders, products, dateRange, customStart, customEnd, searchTerm]);
 
+  const negativeMarginProducts = useMemo(() => {
+    if (!analytics.byProduct) return [];
+    return analytics.byProduct.filter((item) => item.profit <= 0);
+  }, [analytics.byProduct]);
+
   if (loading) {
     return <div className="text-center py-5"><div className="spinner-border text-primary-custom"></div></div>;
   }
@@ -277,6 +282,19 @@ function AdminAnalytics() {
         )}
       </div>
 
+      {negativeMarginProducts.length > 0 && (
+        <div className="alert alert-warning border-warning rounded-4 mb-4 d-flex align-items-center gap-3">
+          <i className="bi bi-exclamation-triangle text-warning fs-4"></i>
+          <div>
+            <h6 className="fw-bold mb-1">Negative or Zero Margin Warnings</h6>
+            <p className="mb-0 small text-dark">
+              The following products have negative or zero profit margins:{" "}
+              <strong>{negativeMarginProducts.map((p) => p.key).join(", ")}</strong>. Please review their cost and sell prices.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="row g-3 mb-4">
         <MetricCard label="Total Profit" value={formatMoney(analytics.totalProfit)} icon="bi-graph-up-arrow" />
         <MetricCard label="Today's Profit" value={formatMoney(analytics.todayProfit)} icon="bi-calendar-check" tone="text-success" />
@@ -309,7 +327,11 @@ function AdminAnalytics() {
                     <td>{item.quantity}</td>
                     <td>{formatMoney(item.revenue)}</td>
                     <td>{formatMoney(item.cost)}</td>
-                    <td className="fw-bold text-success">{formatMoney(item.profit)}</td>
+                    <td className={`fw-bold ${item.profit < 0 ? "text-danger" : item.profit === 0 ? "text-warning" : "text-success"}`}>
+                      {formatMoney(item.profit)}
+                      {item.profit < 0 && <span className="badge bg-danger ms-2" style={{ fontSize: "0.7rem" }}>Negative Margin</span>}
+                      {item.profit === 0 && <span className="badge bg-warning text-dark ms-2" style={{ fontSize: "0.7rem" }}>Zero Profit</span>}
+                    </td>
                   </tr>
                 ))}
                 {analytics.byProduct.length === 0 && (
@@ -383,7 +405,11 @@ function AdminAnalytics() {
                     <td>{item.orders}</td>
                     <td>{formatMoney(item.revenue)}</td>
                     <td>{formatMoney(item.cost)}</td>
-                    <td className="fw-bold text-success">{formatMoney(item.profit)}</td>
+                    <td className={`fw-bold ${item.profit < 0 ? "text-danger" : item.profit === 0 ? "text-warning" : "text-success"}`}>
+                      {formatMoney(item.profit)}
+                      {item.profit < 0 && <span className="badge bg-danger ms-2" style={{ fontSize: "0.7rem" }}>Negative Margin</span>}
+                      {item.profit === 0 && <span className="badge bg-warning text-dark ms-2" style={{ fontSize: "0.7rem" }}>Zero Profit</span>}
+                    </td>
                   </tr>
                 ))}
                 {analytics.byDay.length === 0 && (

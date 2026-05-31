@@ -523,7 +523,7 @@ h1, h2, h3, h4, h5, h6 {
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
-  z-index: 2000;
+  z-index: 1000;
   overflow: visible;
 }
 
@@ -593,7 +593,7 @@ h1, h2, h3, h4, h5, h6 {
 .navbar-user-menu-layer {
   position: fixed;
   inset: 0;
-  z-index: 2010;
+  z-index: 1010;
   pointer-events: none;
   overflow: visible;
   contain: none;
@@ -601,7 +601,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .navbar-user-menu {
   position: fixed;
-  z-index: 2010;
+  z-index: 1010;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -678,21 +678,32 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--primary-color);
 }
 
+/* Admin item — looks like a normal item by default, only highlighted when active */
 .navbar-user-menu .dropdown-item.admin-item {
-  color: var(--primary-color);
+  color: var(--text-main);
   background: transparent;
 }
 
 .navbar-user-menu .dropdown-item.admin-item i {
-  color: var(--primary-color);
+  color: var(--text-muted);
 }
 
 .navbar-user-menu .dropdown-item.admin-item:hover {
-  background: #EEF2FF;
+  background: #F5F7FF;
+  color: var(--primary-color);
+}
+
+.navbar-user-menu .dropdown-item.admin-item:hover i {
+  color: var(--primary-color);
 }
 
 .navbar-user-menu .dropdown-item.admin-item.active-route {
-  background: rgba(99, 102, 241, 0.12);
+  background: #EEF2FF;
+  color: var(--primary-color);
+}
+
+.navbar-user-menu .dropdown-item.admin-item.active-route i {
+  color: var(--primary-color);
 }
 
 .navbar-user-menu .dropdown-item.logout-item {
@@ -2051,3 +2062,256 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 0.9rem;
   }
 }
+
+/* ==========================================================================
+   DARK MODE SUPPORT
+   ========================================================================== */
+
+/* 1. Global Transitions */
+body, 
+.card, 
+.navbar-custom, 
+.search-input, 
+.cart-btn-nav, 
+.admin-content-card, 
+.form-control, 
+.form-select, 
+.list-group-item,
+.modal-content,
+.dropdown-menu,
+.table,
+.table th,
+.table td {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* 2. Theme Tokens Override */
+body.dark-mode {
+  --bg-color: #0f172a; /* Deep Slate */
+  --surface-color: #1e293b; /* Card Background */
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -2px rgba(0,0,0,0.4);
+  --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5);
+}
+
+/* 3. Bootstrap Class Overrides for Dark Mode */
+body.dark-mode .bg-white {
+  background-color: var(--surface-color) !important;
+}
+
+body.dark-mode .bg-light {
+  background-color: #1e293b !important;
+}
+
+body.dark-mode .text-dark {
+  color: var(--text-main) !important;
+}
+
+body.dark-mode .text-muted {
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .border,
+body.dark-mode .border-bottom,
+body.dark-mode .border-top,
+body.dark-mode .border-end,
+body.dark-mode .border-start,
+body.dark-mode .border-light {
+  border-color: var(--border-color) !important;
+}
+
+/* 4. Table overrides */
+body.dark-mode .table {
+  color: var(--text-main);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .table-light {
+  background-color: #0f172a !important;
+  color: var(--text-main);
+}
+
+body.dark-mode .table th, 
+body.dark-mode .table td {
+  background-color: transparent !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color);
+}
+
+body.dark-mode .admin-table th {
+  color: var(--text-main) !important;
+  border-bottom: 2px solid var(--border-color) !important;
+}
+
+/* 5. Form control & input overrides */
+body.dark-mode .form-control, 
+body.dark-mode .form-select {
+  background-color: #0f172a;
+  color: var(--text-main);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .form-control:focus, 
+body.dark-mode .form-select:focus {
+  background-color: #0f172a;
+  color: var(--text-main);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+}
+
+body.dark-mode .form-control::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* 6. List Group overrides */
+body.dark-mode .list-group-item {
+  background-color: var(--surface-color);
+  color: var(--text-main);
+  border-color: var(--border-color);
+}
+
+/* 7. Modal overrides */
+body.dark-mode .modal-content {
+  background-color: var(--surface-color);
+  color: var(--text-main);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+
+body.dark-mode .modal-header, 
+body.dark-mode .modal-footer {
+  border-color: var(--border-color);
+  background-color: var(--surface-color);
+}
+
+body.dark-mode .modal-backdrop-custom {
+  background: rgba(15, 23, 42, 0.7);
+}
+
+/* 8. Dropdown overrides */
+body.dark-mode .dropdown-menu {
+  background-color: var(--surface-color);
+  border-color: var(--border-color);
+  color: var(--text-main);
+  box-shadow: var(--shadow-lg);
+}
+
+body.dark-mode .dropdown-item {
+  color: var(--text-main);
+}
+
+body.dark-mode .dropdown-item:hover, 
+body.dark-mode .dropdown-item:focus {
+  background-color: #0f172a;
+  color: var(--text-main);
+}
+
+body.dark-mode .dropdown-divider {
+  border-color: var(--border-color);
+}
+
+body.dark-mode .btn-close {
+  filter: invert(1);
+}
+
+/* 9. Navigation overrides */
+body.dark-mode .navbar-custom {
+  background: rgba(30, 41, 59, 0.85) !important;
+  border-bottom: 1px solid var(--border-color);
+}
+
+body.dark-mode .search-input {
+  background: #0f172a;
+  color: var(--text-main);
+}
+
+body.dark-mode .search-input:focus {
+  background: #0f172a;
+}
+
+body.dark-mode .cart-btn-nav {
+  background: var(--surface-color);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+body.dark-mode .cart-btn-nav:hover {
+  background: #0f172a;
+}
+
+body.dark-mode .btn-outline-custom {
+  background: var(--surface-color);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+body.dark-mode .btn-outline-custom:hover {
+  background: #0f172a;
+}
+
+body.dark-mode .admin-content-card {
+  background-color: var(--surface-color) !important;
+  border-color: var(--border-color) !important;
+}
+
+body.dark-mode .active-filters-btn {
+  background: var(--surface-color);
+  color: var(--text-main);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .checkout-input {
+  background: #0f172a;
+  color: var(--text-main);
+}
+
+body.dark-mode .checkout-input:focus {
+  background: #0f172a;
+}
+
+body.dark-mode .qty-controls {
+  background: #0f172a;
+}
+
+body.dark-mode .qty-btn {
+  color: var(--text-main);
+}
+
+body.dark-mode .filter-toggle-btn {
+  background: var(--surface-color);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+body.dark-mode .filter-toggle-btn:hover {
+  background: #0f172a;
+}
+
+/* 10. Pricing & Magnifier adjustments */
+body.dark-mode .product-img-wrapper {
+  background-color: #ffffff !important; /* Keep product images on pure white cards for contrast */
+}
+
+body.dark-mode .noUi-handle {
+  background: var(--surface-color);
+}
+
+body.dark-mode .noUi-target {
+  background: #334155;
+}
+
+body.dark-mode .noUi-connect {
+  background: var(--primary-color);
+}
+
+/* Theme toggle subtle rotate animation on hover */
+.theme-toggle-btn:hover i {
+  transform: rotate(15deg);
+  transition: transform 0.2s ease-in-out;
+}
+

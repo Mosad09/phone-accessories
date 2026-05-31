@@ -17,6 +17,8 @@ function Navbar({
   navigate,
   isAdmin,
   pathname,
+  theme,
+  toggleTheme,
 }) {
   const [inputValue, setInputValue] = useState(search || "");
   const [suggestions, setSuggestions] = useState([]);
@@ -288,6 +290,16 @@ function Navbar({
               </div>
             )}
           </div>
+
+          {/* Theme Toggle */}
+          <button
+            className="cart-btn-nav theme-toggle-btn border-0 shadow-none"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            style={{ transition: "transform 0.3s ease" }}
+          >
+            <i className={`bi ${theme === "dark" ? "bi-sun" : "bi-moon"} fs-5`}></i>
+          </button>
 
           {/* Wishlist */}
           <button className="cart-btn-nav" onClick={() => navigate("wishlist")} aria-label="Wishlist">

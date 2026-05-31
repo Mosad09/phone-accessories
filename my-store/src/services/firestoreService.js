@@ -216,3 +216,95 @@ export const isUserAdmin = async (uid, email) => {
     return false;
   }
 };
+
+export const updateProductPriceFromOrder = async (productId, orderId, newPrice) => {
+  if (!productId || !orderId) {
+    throw new Error("Missing required product or order ID.");
+  }
+  const numericPrice = Number(newPrice);
+  if (isNaN(numericPrice) || numericPrice < 0) {
+    throw new Error("Invalid price value.");
+  }
+
+  // 1. Update the product database
+  try {
+    const productRef = doc(db, "products", productId);
+    const productSnap = await getDoc(productRef);
+    if (productSnap.exists()) {
+      const prodData = productSnap.data();
+      const previousPrice = prodData.price ?? prodData.sellPrice ?? null;
+      await updateDoc(productRef, {
+        price: numericPrice,
+        sellPrice: numericPrice,
+        previousPrice: previousPrice,
+        priceLastUpdated: new Date().toISOString(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+  } catch (err) {
+    console.error("Failed to update product pricing:", err);
+  }
+
+  // 2. Update the order document
+  const orderRef = doc(db, "orders", orderId);
+  const orderSnap = await getDoc(orderRef);
+  if (orderSnap.exists()) {
+    const orderData = orderSnap.data();
+    const items = typeof orderData.items === "string" ? JSON.parse(orderData.items) : orderData.items || [];
+    
+    // Update the item price in the order items list
+    const updatedItems = items.map((item) => {
+      const itemProductId = item.productId || item.id || (item.product && item.product.id);
+      if (itemProductId === productId) {
+        return {
+          ...item,
+          price: numericPrice,
+          sellPrice: numericPrice,
+        };
+      }
+      return item;
+    });
+
+    // Recalculate totalPrice
+    const newTotalPrice = updatedItems.reduce(
+      (sum, item) => sum + (Number(item.price || item.sellPrice || 0) * Number(item.qty || item.quantity || 1)),
+      0
+    );
+
+    const payload = {
+      items: updatedItems,
+      totalPrice: newTotalPrice,
+      updatedAt: serverTimestamp(),
+    };
+
+    // If order status is delivered, recalculate profit metrics
+    if (String(orderData.status || "").toLowerCase() === "delivered") {
+      const productsSnapshot = await getDocs(productsCol);
+      const products = productsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const normalizedOrder = normalizeOrderFromSnapshot({
+        id: orderSnap.id,
+        data: () => ({ ...orderData, items: updatedItems, totalPrice: newTotalPrice }),
+      });
+      const profitSummary = calculateOrderProfit(normalizedOrder, buildProductsById(products));
+
+      payload.deliveredAt = serverTimestamp();
+      payload.revenue = profitSummary.revenue;
+      payload.cost = profitSummary.cost;
+      payload.profit = profitSummary.profit;
+      payload.profitItems = profitSummary.items.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        sellPrice: item.sellPrice,
+        costPrice: item.costPrice,
+        revenue: item.revenue,
+        cost: item.cost,
+        profit: item.profit,
+      }));
+    }
+
+    await updateDoc(orderRef, payload);
+  } else {
+    throw new Error("Order not found.");
+  }
+};
