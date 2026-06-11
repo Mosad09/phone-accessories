@@ -20,6 +20,7 @@ import AdminPanel from "./components/admin/AdminPanel";
 import { syncUser, updateUserProfile } from "./services/db";
 import { subscribeToProducts, saveOrderToFirestore, isUserAdmin } from "./services/firestoreService";
 import { toTitleCase } from "./utils/textUtils";
+import { useTranslation } from "react-i18next";
 
 const getPageFromPath = (pathname) => {
   const normalized = pathname.replace(/^\/+|\/+$/g, "");
@@ -36,11 +37,16 @@ function App() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [user, setUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
-  const [currentPage, setCurrentPageState] = useState(() => {
-    return getPageFromPath(window.location.pathname);
-  });
+  const currentPage = getPageFromPath(location.pathname);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  const { t, i18n } = useTranslation();
+
+  useEffect(() => {
+    document.documentElement.dir = i18n.dir();
+    document.documentElement.lang = i18n.language;
+  }, [i18n, i18n.language]);
 
   // ================= THEME STATE =================
   const [theme, setTheme] = useState(() => {
@@ -387,7 +393,7 @@ function App() {
           element={isAuthChecking ? (
             <div className="container py-5 text-center">
               <div className="spinner-border text-primary-custom" role="status">
-                <span className="visually-hidden">Loading...</span>
+                <span className="visually-hidden">{t('app.loading')}</span>
               </div>
             </div>
           ) : currentPage === "admin" ? (
@@ -396,15 +402,15 @@ function App() {
         ) : (
           <div className="container py-5 text-center">
             <i className="bi bi-shield-lock fs-1 text-muted-custom"></i>
-            <h3 className="mt-3">Admin access required</h3>
+            <h3 className="mt-3">{t('app.admin_required')}</h3>
             <p className="text-muted-custom mb-4">
-              You do not have permission to view the Admin Dashboard.
+              {t('app.admin_permission_denied')}
             </p>
             <button
               className="btn btn-primary-custom rounded-pill px-4"
               onClick={() => setCurrentPage("home")}
             >
-              Back to Store
+              {t('app.back_to_store')}
             </button>
           </div>
         )
@@ -435,10 +441,9 @@ function App() {
         {/* HERO SECTION */}
         {!hasActiveFilters && (
           <div className="hero-section text-center px-4">
-            <h1 className="fw-bold mb-3 display-4">Discover Premium Tech.</h1>
+            <h1 className="fw-bold mb-3 display-4">{t('app.hero_title')}</h1>
             <p className="lead opacity-75 mb-4 max-w-md mx-auto">
-              Elevate your device experience with our curated selection of
-              high-quality cases, chargers, and audio gear.
+              {t('app.hero_desc')}
             </p>
             <button
               className="btn btn-light rounded-pill px-4 py-2 fw-semibold shadow-sm"
@@ -446,7 +451,7 @@ function App() {
                 window.scrollTo({ top: 400, behavior: "smooth" })
               }
             >
-              Shop Now <i className="bi bi-arrow-down ms-1"></i>
+              {t('app.shop_now')} <i className="bi bi-arrow-down ms-1"></i>
             </button>
           </div>
         )}
@@ -511,17 +516,17 @@ function App() {
                       style={{ fontSize: "3rem" }}
                     ></i>
                     <h4 className="mt-3 text-muted-custom">
-                      No products found.
+                      {t('app.no_products')}
                     </h4>
                     <p className="text-muted-custom opacity-75">
-                      Try adjusting your search or filters.
+                      {t('app.try_adjusting')}
                     </p>
                     {hasActiveFilters && (
                       <button
                         className="btn btn-outline-custom mt-2"
                         onClick={clearFilters}
                       >
-                        Clear All Filters
+                        {t('app.clear_filters')}
                       </button>
                     )}
                   </div>

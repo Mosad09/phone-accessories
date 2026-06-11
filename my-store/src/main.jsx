@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
+import './i18n'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

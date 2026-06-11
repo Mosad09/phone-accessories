@@ -8,6 +8,7 @@ function formatPrice(price) {
 }
 
 function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, user, dbUser, onOrderConfirmed }) {
+  const { t, i18n } = useTranslation();
   const [showCheckout, setShowCheckout] = useState(false);
 
   return (
@@ -35,28 +36,29 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, 
               <div className="card-body p-0">
                 <ul className="list-group list-group-flush">
                   {cart.map((item) => (
-                    <li key={item.id} className="list-group-item p-3 p-md-4">
+                    <li key={item.id} className="list-group-item cart-page-item p-3 p-md-4">
                       <div className="row align-items-center">
                         <div className="col-auto">
                           <img
                             src={item.image}
                             alt={toTitleCase(item.name)}
-                            className="rounded"
+                            className="rounded cart-product-image"
                             style={{ width: "80px", height: "80px", objectFit: "cover" }}
                           />
                         </div>
-                        <div className="col">
+                        <div className="col cart-product-copy">
                           <h6 className="mb-1 text-truncate" title={toTitleCase(item.name)}>
                             {toTitleCase(item.name)}
                           </h6>
                           <div className="text-primary-custom fw-bold">{formatPrice(item.price)} EGP</div>
                         </div>
-                        <div className="col-12 col-md-auto mt-3 mt-md-0 d-flex align-items-center justify-content-between gap-4">
+                        <div className="col-12 col-md-auto mt-3 mt-md-0 d-flex align-items-center justify-content-between gap-4 cart-page-actions">
                           <div className="qty-controls d-flex align-items-center border rounded px-2 py-1">
                             <button
                               className="btn btn-sm btn-link text-decoration-none text-dark p-1"
                               onClick={() => updateQuantity(item.id, item.qty - 1)}
                               disabled={item.qty <= 1}
+                              aria-label={`Decrease quantity of ${toTitleCase(item.name)}`}
                             >
                               <i className="bi bi-dash"></i>
                             </button>
@@ -64,6 +66,7 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, 
                             <button
                               className="btn btn-sm btn-link text-decoration-none text-dark p-1"
                               onClick={() => updateQuantity(item.id, item.qty + 1)}
+                              aria-label={`Increase quantity of ${toTitleCase(item.name)}`}
                             >
                               <i className="bi bi-plus"></i>
                             </button>
@@ -72,6 +75,7 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, 
                             className="btn btn-link text-danger p-2"
                             onClick={() => removeFromCart(item.id)}
                             title="Remove"
+                            aria-label={`Remove ${toTitleCase(item.name)} from cart`}
                           >
                             <i className="bi bi-trash fs-5"></i>
                           </button>

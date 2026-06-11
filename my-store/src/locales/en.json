@@ -1,0 +1,88 @@
+{
+  "app": {
+    "loading": "Loading...",
+    "admin_required": "Admin access required",
+    "admin_permission_denied": "You do not have permission to view the Admin Dashboard.",
+    "back_to_store": "Back to Store",
+    "hero_title": "Discover Premium Tech.",
+    "hero_desc": "Elevate your device experience with our curated selection of high-quality cases, chargers, and audio gear.",
+    "shop_now": "Shop Now",
+    "no_products": "No products found.",
+    "try_adjusting": "Try adjusting your search or filters.",
+    "clear_filters": "Clear All Filters"
+  },
+  "navbar": {
+    "brand_vel": "Vel",
+    "brand_trix": "trix",
+    "search_placeholder": "Search products, categories...",
+    "home": "Home",
+    "my_orders": "My Orders",
+    "profile": "Profile",
+    "admin_panel": "Admin Panel",
+    "logout": "Logout",
+    "sign_in": "Sign In",
+    "currency": "EGP"
+  },
+  "cart": {
+    "title": "Your Cart",
+    "empty": "Your cart is empty.",
+    "continue_shopping": "Continue Shopping",
+    "subtotal": "Subtotal",
+    "taxes": "Taxes calculated at checkout",
+    "checkout": "Proceed to Checkout"
+  },
+  "product": {
+    "add_to_cart": "Add to Cart",
+    "added_to_cart_toast": "Added to cart ✅",
+    "added_to_wishlist_toast": "Added to wishlist ❤️",
+    "already_in_wishlist": "Already in Wishlist",
+    "add_to_wishlist": "Add to Wishlist",
+    "out_of_stock": "Out of Stock",
+    "details": "Product Details",
+    "colors": "Available Colors",
+    "sizes": "Available Sizes",
+    "back": "Back"
+  },
+  "wishlist": {
+    "title": "My Wishlist",
+    "empty": "Your wishlist is empty."
+  },
+  "filters": {
+    "categories": "Categories",
+    "price_range": "Price Range",
+    "min": "Min",
+    "max": "Max",
+    "sort_by": "Sort By",
+    "sort_default": "Featured",
+    "sort_price_asc": "Price: Low to High",
+    "sort_price_desc": "Price: High to Low",
+    "sort_name_asc": "Name: A to Z"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "name": "Full Name",
+    "phone": "Phone Number",
+    "email": "Email",
+    "address": "Shipping Address",
+    "confirm": "Confirm Order",
+    "cancel": "Cancel",
+    "total": "Total"
+  },
+  "orders": {
+    "title": "My Orders",
+    "empty": "You have no orders yet.",
+    "order_id": "Order",
+    "date": "Date",
+    "total": "Total",
+    "status": "Status"
+  },
+  "profile": {
+    "title": "My Profile",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "save": "Save Changes",
+    "saving": "Saving..."
+  }
+}

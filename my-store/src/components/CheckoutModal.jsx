@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 function formatPrice(price) {
   if (!price && price !== 0) return "0";
@@ -17,6 +18,7 @@ function addressToString(address) {
 }
 
 function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrderConfirmed }) {
+  const { t, i18n } = useTranslation();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -28,6 +30,8 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
   useEffect(() => {
     if (!isOpen) return;
 
+    // Opening the modal intentionally resets the checkout draft.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStep("form");
     setErrors({});
     if (user) {
@@ -134,13 +138,19 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
 
   return (
     <div className="checkout-modal-overlay" onClick={handleBackdropClick}>
-      <div className="checkout-modal" ref={modalRef}>
+      <div
+        className="checkout-modal"
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="checkout-title"
+      >
         {step === "form" && (
           <>
             <div className="checkout-modal-header">
               <div className="d-flex align-items-center gap-2">
                 <i className="bi bi-bag-check fs-5 text-primary-custom"></i>
-                <h5 className="fw-bold mb-0">Checkout</h5>
+                <h5 id="checkout-title" className="fw-bold mb-0">Checkout</h5>
               </div>
               <button className="checkout-modal-close" onClick={onClose} aria-label="Close">
                 <i className="bi bi-x-lg"></i>
@@ -188,11 +198,13 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
               )}
 
               <div className="checkout-form-group">
-                <label className="checkout-label">
+                <label className="checkout-label" htmlFor="checkout-full-name">
                   Full Name <span className="text-danger">*</span>
                 </label>
                 <input
                   type="text"
+                  id="checkout-full-name"
+                  autoComplete="name"
                   className={`checkout-input ${errors.fullName ? "checkout-input-error" : ""}`}
                   value={fullName}
                   onChange={(e) => { setFullName(e.target.value); setErrors(prev => ({ ...prev, fullName: "" })); }}
@@ -202,11 +214,13 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
               </div>
 
               <div className="checkout-form-group">
-                <label className="checkout-label">
+                <label className="checkout-label" htmlFor="checkout-phone">
                   Phone Number <span className="text-danger">*</span>
                 </label>
                 <input
                   type="tel"
+                  id="checkout-phone"
+                  autoComplete="tel"
                   className={`checkout-input ${errors.phone ? "checkout-input-error" : ""}`}
                   value={phone}
                   onChange={(e) => { setPhone(e.target.value); setErrors(prev => ({ ...prev, phone: "" })); }}
@@ -216,11 +230,13 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
               </div>
 
               <div className="checkout-form-group">
-                <label className="checkout-label">
+                <label className="checkout-label" htmlFor="checkout-email">
                   Email <span className="text-danger">*</span>
                 </label>
                 <input
                   type="email"
+                  id="checkout-email"
+                  autoComplete="email"
                   className={`checkout-input ${errors.email ? "checkout-input-error" : ""}`}
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setErrors(prev => ({ ...prev, email: "" })); }}
@@ -230,11 +246,13 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
               </div>
 
               <div className="checkout-form-group">
-                <label className="checkout-label">
+                <label className="checkout-label" htmlFor="checkout-address">
                   Address <span className="text-danger">*</span>
                 </label>
                 <textarea
                   className={`checkout-input checkout-textarea ${errors.address ? "checkout-input-error" : ""}`}
+                  id="checkout-address"
+                  autoComplete="street-address"
                   value={address}
                   onChange={(e) => { setAddress(e.target.value); setErrors(prev => ({ ...prev, address: "" })); }}
                   placeholder="Street, building, city, governorate..."
@@ -262,7 +280,7 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
             <p className="text-muted-custom mb-4" style={{ fontSize: "0.92rem" }}>
               Was the order successfully sent via WhatsApp?
             </p>
-            <div className="d-flex gap-3 w-100">
+            <div className="d-flex gap-3 w-100 checkout-confirm-actions">
               <button className="btn flex-1 py-2 fw-semibold checkout-confirm-no" onClick={handleConfirmNo}>
                 No, Go Back
               </button>

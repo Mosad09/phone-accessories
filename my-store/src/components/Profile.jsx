@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { updateUserProfile, getUserProfile } from "../services/db";
 
 const EGYPT_LOCATIONS = {
@@ -32,6 +33,7 @@ const EGYPT_LOCATIONS = {
 };
 
 function Profile({ user, dbUser, setDbUser }) {
+  const { t, i18n } = useTranslation();
   const [governorate, setGovernorate] = useState("");
   const [city, setCity] = useState("");
   const [detail, setDetail] = useState("");
@@ -45,6 +47,8 @@ function Profile({ user, dbUser, setDbUser }) {
   useEffect(() => {
     if (dbUser) {
       if (dbUser.address && typeof dbUser.address === 'object') {
+        // Profile state is hydrated when the asynchronously loaded user changes.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setGovernorate(dbUser.address.governorate || "");
         setCity(dbUser.address.city || "");
         setDetail(dbUser.address.detail || "");
@@ -133,7 +137,7 @@ function Profile({ user, dbUser, setDbUser }) {
           </div>
 
           <hr className="my-4" />
-          <div className="d-flex justify-content-between align-items-center mb-3">
+          <div className="d-flex justify-content-between align-items-center mb-3 profile-address-heading">
             <h5 className="fw-bold mb-0">Delivery Address</h5>
             <button 
               type="button" 
@@ -215,7 +219,7 @@ function Profile({ user, dbUser, setDbUser }) {
           {success && <div className="alert alert-success py-2">Profile updated successfully!</div>}
 
           <button type="submit" className="btn btn-primary-custom w-100 py-2 fw-bold" disabled={loading || geoLoading}>
-            {loading ? "Saving..." : "Save Changes"}
+            {loading ? t("profile.saving") : t("profile.save")}
           </button>
         </form>
       </div>

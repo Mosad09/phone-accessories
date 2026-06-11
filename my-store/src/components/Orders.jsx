@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
-import { subscribeToUserOrders, getUserOrdersFromFirestore } from "../services/firestoreService";
+import { useTranslation } from "react-i18next";
+import { subscribeToUserOrders } from "../services/firestoreService";
 import { getLocalOrders } from "../services/db";
 
 function Orders({ user, navigate }) {
+  const { t, i18n } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error] = useState(null);
 
   useEffect(() => {
+    // A user change starts a fresh subscription/loading cycle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     if (user?.email) {
       // Real-time Firestore subscription for signed-in users
@@ -84,7 +88,7 @@ function Orders({ user, navigate }) {
           return (
           <div key={order.id || order.createdAt || idx} className="col-12 mb-4">
             <div className="card shadow-sm border-0">
-              <div className="card-header bg-light d-flex justify-content-between align-items-center py-3 border-0">
+              <div className="card-header order-card-header bg-light d-flex justify-content-between align-items-center py-3 border-0">
                 <div>
                   <span className="text-muted-custom d-block" style={{ fontSize: "0.85rem" }}>Order ID</span>
                   <span className="fw-semibold">{orderLabel}</span>
@@ -98,7 +102,7 @@ function Orders({ user, navigate }) {
               <div className="card-body">
                 {order.customerName && (
                   <div className="mb-3 pb-3 border-bottom border-light">
-                    <div className="d-flex flex-wrap gap-3" style={{ fontSize: "0.85rem" }}>
+                    <div className="d-flex flex-wrap gap-3 order-contact-row" style={{ fontSize: "0.85rem" }}>
                       <span className="text-muted-custom"><i className="bi bi-person me-1"></i>{order.customerName}</span>
                       {order.phone && <span className="text-muted-custom"><i className="bi bi-telephone me-1"></i>{order.phone}</span>}
                       {order.address && <span className="text-muted-custom"><i className="bi bi-geo-alt me-1"></i>{order.address}</span>}
@@ -107,7 +111,7 @@ function Orders({ user, navigate }) {
                 )}
 
                 {items.map((item, itemIdx) => (
-                  <div key={itemIdx} className="d-flex align-items-center mb-3 pb-3 border-bottom border-light">
+                  <div key={itemIdx} className="d-flex align-items-center order-item-row mb-3 pb-3 border-bottom border-light">
                     <img src={item.image} alt={item.name} width="50" height="50" className="rounded object-fit-cover me-3" />
                     <div className="flex-grow-1">
                       <h6 className="mb-1">{item.name}</h6>
@@ -119,7 +123,7 @@ function Orders({ user, navigate }) {
                   </div>
                 ))}
 
-                <div className="d-flex justify-content-between align-items-center mt-4">
+                <div className="d-flex justify-content-between align-items-center order-card-footer mt-4">
                   <div>
                     <span className="text-muted-custom d-block" style={{ fontSize: "0.85rem" }}>Date Placed</span>
                     <span className="fw-medium">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import ProductCard from "./ProductCard";
@@ -51,6 +52,7 @@ function toArray(value) {
 }
 
 function ProductDetailSkeleton() {
+  const { t, i18n } = useTranslation();
   return (
     <div className="container mt-4 mb-5 product-detail-shell">
       <div className="skeleton detail-skeleton-line detail-skeleton-breadcrumb mb-4"></div>
@@ -326,10 +328,10 @@ function ProductDetailPage({
               <h1 className="fw-bold mb-3 fs-3 product-detail-title">{product.name || "Untitled Product"}</h1>
 
               <div className="d-flex align-items-baseline gap-3 mb-3 product-detail-price-row">
-                <span className="product-price">EGP {formatPrice(currentPrice)}</span>
+                <span className="product-price">{t("navbar.currency")} {formatPrice(currentPrice)}</span>
                 {product.discountPrice && (
                   <span className="text-muted-custom text-decoration-line-through">
-                    EGP {formatPrice(product.price)}
+                    {t("navbar.currency")} {formatPrice(product.price)}
                   </span>
                 )}
               </div>
@@ -378,7 +380,7 @@ function ProductDetailPage({
                 </div>
               )}
 
-              <div className="d-flex align-items-center justify-content-between gap-3 mt-auto pt-3 price-row">
+              <div className="d-flex align-items-center justify-content-between gap-3 mt-auto pt-3 price-row product-detail-actions">
                 <div className="qty-controls d-flex align-items-center border rounded px-2 py-1 bg-white">
                   <button
                     className="btn btn-sm btn-link text-decoration-none text-dark p-1"
@@ -407,7 +409,7 @@ function ProductDetailPage({
                       setToast({ show: true, message: "Added to wishlist" });
                     }}
                     disabled={isInWishlist(product.id)}
-                    title={isInWishlist(product.id) ? "Already in Wishlist" : "Add to Wishlist"}
+                    title={isInWishlist(product.id) ? t("product.already_in_wishlist") : t("product.add_to_wishlist")}
                   >
                     <i className={`bi ${isInWishlist(product.id) ? "bi-heart-fill" : "bi-heart"}`}></i>
                   </button>
@@ -418,7 +420,7 @@ function ProductDetailPage({
                       setToast({ show: true, message: "Added to cart" });
                     }}
                     disabled={!inStock}
-                    title="Add to Cart"
+                    title={t("product.add_to_cart")}
                   >
                     <i className="bi bi-cart-plus"></i>
                   </button>

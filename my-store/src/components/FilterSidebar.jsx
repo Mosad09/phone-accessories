@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import noUiSlider from "nouislider";
 import "nouislider/dist/nouislider.css";
 
@@ -156,9 +157,15 @@ function FilterSidebar({
     return (
       <>
         {isOpen && (
-          <div className="filter-drawer-overlay" onClick={onClose}></div>
+          <div className="filter-drawer-overlay" onClick={onClose} aria-hidden="true"></div>
         )}
-        <aside className={`filter-drawer ${isOpen ? "open" : ""}`}>
+        <aside
+          className={`filter-drawer ${isOpen ? "open" : ""}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Product filters"
+          aria-hidden={!isOpen}
+        >
           <div className="filter-drawer-header">
             <h5 className="mb-0 fw-bold">
               <i className="bi bi-funnel me-2"></i>Filters

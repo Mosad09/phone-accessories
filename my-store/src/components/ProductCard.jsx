@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toTitleCase } from "../utils/textUtils";
+import { useTranslation } from "react-i18next";
 
 /** Format price with commas */
 function formatPrice(price) {
@@ -9,6 +10,7 @@ function formatPrice(price) {
 }
 
 function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
+  const { t, i18n } = useTranslation();
   const [toast, setToast] = useState({ show: false, message: "" });
   const cardRef = useRef(null);
   const navigate = useNavigate();
@@ -24,13 +26,13 @@ function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
   const handleAddToCart = (e) => {
     e.stopPropagation();
     addToCart(product);
-    setToast({ show: true, message: "Added to cart ✅" });
+    setToast({ show: true, message: t("product.added_to_cart_toast") });
   };
 
   const handleAddToWishlist = (e) => {
     e.stopPropagation();
     addToWishlist(product);
-    setToast({ show: true, message: "Added to wishlist ❤️" });
+    setToast({ show: true, message: t("product.added_to_wishlist_toast") });
   };
 
   const openProductDetails = () => {
@@ -75,7 +77,7 @@ function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
               {product.details && (
                 <p className="overlay-description">{product.details}</p>
               )}
-              <span className="overlay-price">EGP {formatPrice(product.price)}</span>
+              <span className="overlay-price">{t("navbar.currency")} {formatPrice(product.price)}</span>
             </div>
           </div>
         </div>
@@ -100,12 +102,12 @@ function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
 
 
           <div className="mt-auto d-flex align-items-center justify-content-between pt-3 price-row">
-            <span className="product-price mb-0">EGP {formatPrice(product.price)}</span>
+            <span className="product-price mb-0">{t("navbar.currency")} {formatPrice(product.price)}</span>
             <div className="d-flex gap-2">
               <button
                 className={`btn ${isInWishlist ? "btn-danger" : "btn-outline-danger"} add-btn-sm border-0`}
                 onClick={handleAddToWishlist}
-                title={isInWishlist ? "Already in Wishlist" : "Add to Wishlist"}
+                title={isInWishlist ? t("product.already_in_wishlist") : t("product.add_to_wishlist")}
                 disabled={isInWishlist}
               >
                 <i className={`bi ${isInWishlist ? "bi-heart-fill" : "bi-heart"}`}></i>
@@ -113,7 +115,7 @@ function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
               <button
                 className="btn btn-primary-custom add-btn-sm"
                 onClick={handleAddToCart}
-                title="Add to Cart"
+                title={t("product.add_to_cart")}
               >
                 <i className="bi bi-cart-plus"></i>
               </button>

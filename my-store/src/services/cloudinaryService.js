@@ -92,6 +92,7 @@ export const uploadImagesToCloudinary = async (files, options = {}) => {
 };
 
 export const deleteCloudinaryImages = async (_publicIds = []) => {
+  void _publicIds;
   // Unsigned frontend uploads cannot securely destroy assets without server-side credentials.
   // We keep public IDs for future server-side cleanup jobs.
   return;

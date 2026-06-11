@@ -14,11 +14,14 @@
     "@firebase/auth": "^1.13.0",
     "@firebase/firestore": "^4.14.0",
     "axios": "^1.15.2",
+    "i18next": "^26.3.1",
+    "i18next-browser-languagedetector": "^8.2.1",
     "nouislider": "^15.8.1",
     "papaparse": "^5.5.3",
     "puppeteer": "^24.42.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-i18next": "^17.0.8",
     "react-router-dom": "^7.15.0"
   },
   "devDependencies": {

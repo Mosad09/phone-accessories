@@ -8,7 +8,7 @@ function AdminPanel({ navigate }) {
 
   return (
     <div className="container py-4">
-      <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+      <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 admin-page-header">
         <h2 className="fw-bold mb-0 d-flex align-items-center gap-2">
           <i className="bi bi-speedometer2 text-primary-custom"></i>
           Admin Panel
@@ -22,7 +22,7 @@ function AdminPanel({ navigate }) {
       </div>
 
       {/* Tabs */}
-      <ul className="nav nav-pills mb-4 gap-2">
+      <ul className="nav nav-pills mb-4 gap-2 admin-tabs">
         <li className="nav-item">
           <button
             className={`nav-link rounded-pill px-4 fw-medium ${activeTab === "products" ? "active bg-primary-custom text-white" : "bg-light text-dark"}`}
