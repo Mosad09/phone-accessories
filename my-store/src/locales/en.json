@@ -21,7 +21,9 @@
     "admin_panel": "Admin Panel",
     "logout": "Logout",
     "sign_in": "Sign In",
-    "currency": "EGP"
+    "currency": "EGP",
+    "filters": "Filters",
+    "focus_search": "Focus search"
   },
   "cart": {
     "title": "Your Cart",

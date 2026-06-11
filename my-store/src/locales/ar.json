@@ -21,7 +21,9 @@
     "admin_panel": "لوحة التحكم",
     "logout": "تسجيل الخروج",
     "sign_in": "تسجيل الدخول",
-    "currency": "ج.م"
+    "currency": "ج.م",
+    "filters": "تصفية",
+    "focus_search": "التركيز على البحث"
   },
   "cart": {
     "title": "سلة التسوق",
