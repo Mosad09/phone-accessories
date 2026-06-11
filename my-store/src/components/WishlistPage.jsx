@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { toTitleCase } from "../utils/textUtils";
+import { getLocalizedField } from "../utils/localization";
 
 function formatPrice(price) {
   if (!price && price !== 0) return "0";
@@ -9,6 +11,10 @@ function formatPrice(price) {
 function WishlistPage({ wishlist, removeFromWishlist, addToCart, navigate }) {
 
   const [toast, setToast] = useState({ show: false, message: "" });
+  useTranslation();
+
+  const getItemName = (item) => toTitleCase(getLocalizedField(item, "name") || item.name || "");
+  const getItemCategory = (item) => getLocalizedField(item, "category") || item.category || "";
 
   // Auto-hide toast after 2s
   useEffect(() => {
@@ -49,7 +55,7 @@ function WishlistPage({ wishlist, removeFromWishlist, addToCart, navigate }) {
                 <div className="product-img-wrapper" style={{ cursor: 'default' }}>
                   <img
                     src={item.image}
-                    alt={toTitleCase(item.name)}
+                    alt={getItemName(item)}
                     className="card-img-top product-img img-fluid"
                   />
                   <button
@@ -73,11 +79,11 @@ function WishlistPage({ wishlist, removeFromWishlist, addToCart, navigate }) {
                   </button>
                 </div>
                 <div className="card-body d-flex flex-column p-3">
-                  <h5 className="card-title fw-bold fs-6 mb-1 text-truncate" title={toTitleCase(item.name)}>
-                    {toTitleCase(item.name)}
+                  <h5 className="card-title fw-bold fs-6 mb-1 text-truncate" title={getItemName(item)}>
+                    {getItemName(item)}
                   </h5>
-                  {item.category && (
-                    <span className="text-muted small mb-2 d-block">{item.category}</span>
+                  {getItemCategory(item) && (
+                    <span className="text-muted small mb-2 d-block">{getItemCategory(item)}</span>
                   )}
                   <div className="mt-auto pt-3 d-flex align-items-center justify-content-between border-top">
                     <span className="fw-bold text-primary-custom">EGP {formatPrice(item.price)}</span>

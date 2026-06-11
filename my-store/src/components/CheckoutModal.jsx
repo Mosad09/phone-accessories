@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-
+import { useTranslation } from "react-i18next";
+import { getLocalizedField } from "../utils/localization";
 
 function formatPrice(price) {
   if (!price && price !== 0) return "0";
@@ -26,6 +27,9 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
   const [errors, setErrors] = useState({});
   const [step, setStep] = useState("form"); // "form" | "confirm"
   const modalRef = useRef(null);
+  useTranslation();
+
+  const getItemName = (item) => getLocalizedField(item, "name") || item.name || "";
 
   useEffect(() => {
     if (!isOpen) return;
@@ -91,7 +95,7 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
     msg += `*Address:* ${address.trim()}\n\n`;
     msg += "*Order Details:*\n";
     cart.forEach((item, idx) => {
-      msg += `${idx + 1}. ${item.name} x ${item.qty} - ${formatPrice(item.price * item.qty)} EGP\n`;
+      msg += `${idx + 1}. ${getItemName(item)} x ${item.qty} - ${formatPrice(item.price * item.qty)} EGP\n`;
     });
     msg += `\n*Total: ${formatPrice(totalPrice)} EGP*`;
     return msg;
@@ -172,9 +176,9 @@ function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrde
                     <img
                       key={item.id}
                       src={item.image}
-                      alt={item.name}
+                      alt={getItemName(item)}
                       className="checkout-item-thumb"
-                      title={`${item.name} x ${item.qty}`}
+                      title={`${getItemName(item)} x ${item.qty}`}
                     />
                   ))}
                   {cart.length > 3 && (

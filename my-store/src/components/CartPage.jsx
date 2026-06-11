@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import CheckoutModal from "./CheckoutModal";
 import { toTitleCase } from "../utils/textUtils";
+import { getLocalizedField } from "../utils/localization";
 
 function formatPrice(price) {
   if (!price && price !== 0) return "0";
@@ -10,6 +12,9 @@ function formatPrice(price) {
 function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, user, dbUser, onOrderConfirmed }) {
 
   const [showCheckout, setShowCheckout] = useState(false);
+  useTranslation();
+
+  const getItemName = (item) => toTitleCase(getLocalizedField(item, "name") || item.name || "");
 
   return (
     <div className="container mt-4 mb-5">
@@ -41,14 +46,14 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, 
                         <div className="col-auto">
                           <img
                             src={item.image}
-                            alt={toTitleCase(item.name)}
+                            alt={getItemName(item)}
                             className="rounded cart-product-image"
                             style={{ width: "80px", height: "80px", objectFit: "cover" }}
                           />
                         </div>
                         <div className="col cart-product-copy">
-                          <h6 className="mb-1 text-truncate" title={toTitleCase(item.name)}>
-                            {toTitleCase(item.name)}
+                          <h6 className="mb-1 text-truncate" title={getItemName(item)}>
+                            {getItemName(item)}
                           </h6>
                           <div className="text-primary-custom fw-bold">{formatPrice(item.price)} EGP</div>
                         </div>
@@ -58,7 +63,7 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, 
                               className="btn btn-sm btn-link text-decoration-none text-dark p-1"
                               onClick={() => updateQuantity(item.id, item.qty - 1)}
                               disabled={item.qty <= 1}
-                              aria-label={`Decrease quantity of ${toTitleCase(item.name)}`}
+                              aria-label={`Decrease quantity of ${getItemName(item)}`}
                             >
                               <i className="bi bi-dash"></i>
                             </button>
@@ -66,7 +71,7 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, 
                             <button
                               className="btn btn-sm btn-link text-decoration-none text-dark p-1"
                               onClick={() => updateQuantity(item.id, item.qty + 1)}
-                              aria-label={`Increase quantity of ${toTitleCase(item.name)}`}
+                              aria-label={`Increase quantity of ${getItemName(item)}`}
                             >
                               <i className="bi bi-plus"></i>
                             </button>
@@ -75,7 +80,7 @@ function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, 
                             className="btn btn-link text-danger p-2"
                             onClick={() => removeFromCart(item.id)}
                             title="Remove"
-                            aria-label={`Remove ${toTitleCase(item.name)} from cart`}
+                            aria-label={`Remove ${getItemName(item)} from cart`}
                           >
                             <i className="bi bi-trash fs-5"></i>
                           </button>

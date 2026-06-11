@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toTitleCase } from "../utils/textUtils";
 import { useTranslation } from "react-i18next";
+import { getLocalizedField } from "../utils/localization";
 
 /** Format price with commas */
 function formatPrice(price) {
@@ -46,7 +47,9 @@ function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
     }
   };
 
-  const properName = toTitleCase(product.name);
+  const localizedName = toTitleCase(getLocalizedField(product, "name"));
+  const localizedCategory = getLocalizedField(product, "category");
+  const localizedDetails = getLocalizedField(product, "description") || getLocalizedField(product, "details");
 
   return (
     <div className="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
@@ -63,19 +66,19 @@ function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
         <div className="product-img-wrapper">
           <img
             src={product.image}
-            alt={properName}
+            alt={localizedName}
             className="product-img img-fluid"
           />
 
           {/* Hover/Active Details Overlay */}
           <div className="product-details-overlay">
             <div className="overlay-content">
-              <h6 className="overlay-title">{properName}</h6>
-              {product.category && (
-                <span className="overlay-category">{product.category}</span>
+              <h6 className="overlay-title">{localizedName}</h6>
+              {localizedCategory && (
+                <span className="overlay-category">{localizedCategory}</span>
               )}
-              {product.details && (
-                <p className="overlay-description">{product.details}</p>
+              {localizedDetails && (
+                <p className="overlay-description">{localizedDetails}</p>
               )}
               <span className="overlay-price">{t("navbar.currency")} {formatPrice(product.price)}</span>
             </div>
@@ -84,19 +87,19 @@ function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
 
         {/* Product Info */}
         <div className="product-info p-3">
-          <h5 className="product-title fw-bold" title={product.name}>
-            {properName}
+          <h5 className="product-title fw-bold" title={localizedName}>
+            {localizedName}
           </h5>
 
-          {product.category && (
+          {localizedCategory && (
             <span className="category-badge">
-              {product.category}
+              {localizedCategory}
             </span>
           )}
 
-          {product.details && (
-            <div className="text-muted small mb-2 details-text" title={product.details}>
-              {product.details}
+          {localizedDetails && (
+            <div className="text-muted small mb-2 details-text" title={localizedDetails}>
+              {localizedDetails}
             </div>
           )}
 

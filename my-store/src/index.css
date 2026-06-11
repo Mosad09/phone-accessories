@@ -127,13 +127,37 @@ textarea:focus-visible,
 .hero-section {
   background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   color: white;
-  padding: 60px 0;
+  padding: 48px 24px;
   border-radius: 16px;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
   box-shadow: var(--shadow-lg);
   position: relative;
   overflow: hidden;
 }
+
+.hero-title {
+  font-size: clamp(1.35rem, 3.2vw, 2.5rem);
+  line-height: 1.15;
+  margin-bottom: 0.625rem;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-desc {
+  font-size: 1rem;
+  line-height: 1.5;
+  opacity: 0.78;
+  margin-bottom: 1rem;
+  max-width: 36rem;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-cta {
+  position: relative;
+  z-index: 1;
+}
+
 .hero-section::after {
   content: '';
   position: absolute;
@@ -1044,14 +1068,62 @@ textarea:focus-visible,
     height: 44px;
   }
 
+  .home-page.container {
+    margin-top: 0.75rem !important;
+  }
+
   .hero-section {
-    padding: 40px 16px;
+    padding: 20px 14px 18px;
     border-radius: 12px;
+    margin-bottom: 12px;
+  }
+
+  .hero-section::after {
+    width: 160px;
+    height: 160px;
+    top: -35%;
+    right: -25%;
+    filter: blur(70px);
+  }
+
+  .hero-title {
+    font-size: 1.35rem;
+    line-height: 1.2;
+    margin-bottom: 0.35rem;
+  }
+
+  .hero-desc {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    margin-bottom: 0.65rem;
+    max-width: 18rem;
+  }
+
+  .hero-cta {
+    font-size: 0.8125rem;
+    padding: 0.35rem 0.9rem !important;
+  }
+
+  .shop-layout {
+    margin-top: 12px;
+    gap: 12px;
+  }
+}
+
+/* Tablets & small laptops */
+@media (max-width: 991px) and (min-width: 769px) {
+  .hero-section {
+    padding: 36px 22px;
     margin-bottom: 24px;
   }
 
-  .hero-section h1 {
-    font-size: 1.8rem;
+  .hero-title {
+    font-size: 1.75rem;
+  }
+
+  .hero-desc {
+    font-size: 0.9375rem;
+    margin-bottom: 0.875rem;
   }
 }
 
@@ -1060,6 +1132,31 @@ textarea:focus-visible,
   .product-img-wrapper {
     padding: 18px;
     min-height: 180px;
+  }
+
+  .hero-section {
+    padding: 28px 18px;
+    margin-bottom: 18px;
+  }
+
+  .hero-title {
+    font-size: 1.55rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .hero-desc {
+    font-size: 0.875rem;
+    line-height: 1.45;
+    margin-bottom: 0.75rem;
+  }
+
+  .hero-cta {
+    font-size: 0.875rem;
+    padding: 0.4rem 1rem !important;
+  }
+
+  .shop-layout {
+    margin-top: 16px;
   }
 }
 
@@ -1079,6 +1176,7 @@ textarea:focus-visible,
   .shop-layout {
     grid-template-columns: 1fr;
     gap: 16px;
+    margin-top: 16px;
   }
 }
 
@@ -2730,13 +2828,16 @@ body.dark-mode .hero-section::after {
 }
 
 body.dark-mode .hero-section h1,
+body.dark-mode .hero-section .hero-title,
 body.dark-mode .hero-section p,
+body.dark-mode .hero-section .hero-desc,
 body.dark-mode .hero-section button {
   position: relative;
   z-index: 1;
 }
 
-body.dark-mode .hero-section p {
+body.dark-mode .hero-section p,
+body.dark-mode .hero-section .hero-desc {
   color: #d7dde8;
   opacity: 0.9 !important;
 }

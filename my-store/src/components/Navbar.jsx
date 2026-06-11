@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { getSuggestions } from "../utils/searchEngine";
 import { loginWithGoogle, logout } from "../utils/firebase";
 import { useTranslation } from "react-i18next";
+import { getLocalizedField } from "../utils/localization";
 
 function Navbar({
   cartCount,
@@ -219,7 +220,7 @@ function Navbar({
   };
 
   const selectSuggestion = (suggestion) => {
-    const name = suggestion.product.name || "";
+    const name = getLocalizedField(suggestion.product, "name") || suggestion.product.name || "";
     setInputValue(name);
     onSearchChange(name);
     setShowSuggestions(false);
@@ -303,9 +304,9 @@ function Navbar({
                       </strong>
                       {item.highlightedName.after}
                     </span>
-                    {item.product.category && (
+                    {getLocalizedField(item.product, "category") && (
                       <span className="suggestion-category">
-                        {item.product.category}
+                        {getLocalizedField(item.product, "category")}
                       </span>
                     )}
                   </div>

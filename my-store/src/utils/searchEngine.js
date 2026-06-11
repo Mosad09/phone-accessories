@@ -1,12 +1,14 @@
 /**
  * Smart Search Engine
- * - Multi-field search (name, category, details)
+ * - Multi-field search (name, category, description — English & Arabic)
  * - Case-insensitive + trimmed
  * - Partial matching
  * - Arabic synonym mapping
  * - Price-aware search
  * - Prioritized results (beginning matches rank higher)
  */
+
+import { getLocalizedField } from "./localization";
 
 // ───── Synonym Map (Arabic → English) ─────
 const SYNONYMS = {
@@ -59,8 +61,11 @@ function extractPriceFromQuery(query) {
 function scoreProduct(product, terms, priceQuery) {
   let score = 0;
   const name = (product.name || "").toLowerCase();
+  const nameAr = (product.nameAr || "").toLowerCase();
   const category = (product.category || "").toLowerCase();
-  const details = (product.details || "").toLowerCase();
+  const categoryAr = (product.categoryAr || "").toLowerCase();
+  const details = (product.details || product.description || "").toLowerCase();
+  const descriptionAr = (product.descriptionAr || "").toLowerCase();
 
   for (const term of terms) {
     if (!term) continue;
@@ -72,6 +77,13 @@ function scoreProduct(product, terms, priceQuery) {
       score += 60;
     }
 
+    // Arabic name matches (same priority as English name)
+    if (nameAr.startsWith(term)) {
+      score += 100;
+    } else if (nameAr.includes(term)) {
+      score += 60;
+    }
+
     // Category matches
     if (category.startsWith(term)) {
       score += 50;
@@ -79,8 +91,20 @@ function scoreProduct(product, terms, priceQuery) {
       score += 30;
     }
 
+    // Arabic category matches
+    if (categoryAr.startsWith(term)) {
+      score += 50;
+    } else if (categoryAr.includes(term)) {
+      score += 30;
+    }
+
     // Details matches
     if (details.includes(term)) {
+      score += 20;
+    }
+
+    // Arabic description matches
+    if (descriptionAr.includes(term)) {
       score += 20;
     }
   }
@@ -151,19 +175,21 @@ export function getSuggestions(products, query, limit = 8) {
     .slice(0, limit);
 
   return scored.map(({ product, score }) => {
-    // Find where to highlight in the name
-    const name = product.name || "";
-    const lowerName = name.toLowerCase();
-    const matchIndex = lowerName.indexOf(lowerQuery);
+    const displayName = getLocalizedField(product, "name");
+    const searchNames = [displayName, product.name, product.nameAr].filter(Boolean);
+    let highlightedName = { before: displayName, match: "", after: "" };
 
-    let highlightedName;
-    if (matchIndex >= 0) {
-      const before = name.slice(0, matchIndex);
-      const match = name.slice(matchIndex, matchIndex + lowerQuery.length);
-      const after = name.slice(matchIndex + lowerQuery.length);
-      highlightedName = { before, match, after };
-    } else {
-      highlightedName = { before: name, match: "", after: "" };
+    for (const candidate of searchNames) {
+      const lowerCandidate = candidate.toLowerCase();
+      const matchIndex = lowerCandidate.indexOf(lowerQuery);
+      if (matchIndex >= 0) {
+        highlightedName = {
+          before: candidate.slice(0, matchIndex),
+          match: candidate.slice(matchIndex, matchIndex + lowerQuery.length),
+          after: candidate.slice(matchIndex + lowerQuery.length),
+        };
+        break;
+      }
     }
 
     return {
@@ -213,7 +239,9 @@ export function filterAndSort(products, {
       result.sort((a, b) => b.price - a.price);
       break;
     case "name-asc":
-      result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      result.sort((a, b) =>
+        getLocalizedField(a, "name").localeCompare(getLocalizedField(b, "name"))
+      );
       break;
     default:
       // If searching, keep relevance order from searchProducts

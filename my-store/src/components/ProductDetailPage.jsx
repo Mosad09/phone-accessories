@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import ProductCard from "./ProductCard";
 import { getProductById } from "../services/firestoreService";
 import { toTitleCase } from "../utils/textUtils";
+import { getLocalizedField } from "../utils/localization";
 
 function formatPrice(price) {
   if (!price && price !== 0) return "0";
@@ -16,6 +17,7 @@ function normalizeProduct(product) {
   return {
     ...product,
     name: toTitleCase(product.name || ""),
+    nameAr: product.nameAr || "",
     costPrice: parseFloat(product.costPrice) || 0,
     sellPrice: parseFloat(product.sellPrice ?? product.price) || 0,
     price: parseFloat(product.sellPrice ?? product.price) || 0,
@@ -24,6 +26,8 @@ function normalizeProduct(product) {
     images: product.images || (product.image ? [product.image] : []),
     details: product.details || product.description || "",
     description: product.description || product.details || "",
+    descriptionAr: product.descriptionAr || "",
+    categoryAr: product.categoryAr || "",
     stock: Number(product.stock) || 0,
     sizes: product.sizes || [],
     colors: product.colors || [],
@@ -258,6 +262,9 @@ function ProductDetailPage({
   const sizes = toArray(product.sizes);
   const currentPrice = product.discountPrice || product.price;
   const canIncreaseQuantity = inStock && quantity < product.stock;
+  const localizedName = toTitleCase(getLocalizedField(product, "name")) || t("product.untitled", "Untitled Product");
+  const localizedCategory = getLocalizedField(product, "category");
+  const localizedDescription = getLocalizedField(product, "description") || getLocalizedField(product, "details");
 
   return (
     <div className="container mt-4 mb-5 product-detail-shell" key={product.id}>
@@ -287,7 +294,7 @@ function ProductDetailPage({
               {activeImage ? (
                 <img
                   src={activeImage}
-                  alt={product.name || "Product image"}
+                  alt={localizedName}
                   className="product-img img-fluid product-detail-main-image"
                   style={{
                     height: "240px",
@@ -321,11 +328,11 @@ function ProductDetailPage({
           <div className="product-card p-4 h-100 product-detail-info">
             <div className="d-flex flex-column h-100">
               <div className="d-flex gap-2 flex-wrap align-items-center mb-2">
-                {product.category && <span className="category-badge mb-0">{product.category}</span>}
+                {localizedCategory && <span className="category-badge mb-0">{localizedCategory}</span>}
                 {product.featured && <span className="badge bg-warning text-dark rounded-pill px-3 py-2">Featured</span>}
               </div>
 
-              <h1 className="fw-bold mb-3 fs-3 product-detail-title">{product.name || "Untitled Product"}</h1>
+              <h1 className="fw-bold mb-3 fs-3 product-detail-title">{localizedName}</h1>
 
               <div className="d-flex align-items-baseline gap-3 mb-3 product-detail-price-row">
                 <span className="product-price">{t("navbar.currency")} {formatPrice(currentPrice)}</span>
@@ -340,10 +347,10 @@ function ProductDetailPage({
                 {inStock ? `${product.stock} in stock` : "Out of stock"}
               </span>
 
-              {product.description && (
+              {localizedDescription && (
                 <div className="mb-3 product-detail-description">
-                  <h5 className="fw-bold">Description</h5>
-                  <p className="text-muted-custom lh-lg mb-0">{product.description}</p>
+                  <h5 className="fw-bold">{t("product.description", "Description")}</h5>
+                  <p className="text-muted-custom lh-lg mb-0">{localizedDescription}</p>
                 </div>
               )}
 
@@ -434,7 +441,7 @@ function ProductDetailPage({
       <section className="mt-5 product-detail-related">
         <div className="d-flex align-items-center justify-content-between mb-3">
           <h3 className="fw-bold mb-0">Related Products</h3>
-          {product.category && <span className="text-muted-custom small">{product.category}</span>}
+          {localizedCategory && <span className="text-muted-custom small">{localizedCategory}</span>}
         </div>
 
         {relatedProducts.length > 0 ? (
@@ -464,7 +471,7 @@ function ProductDetailPage({
             <button className="lightbox-close" onClick={() => setIsLightboxOpen(false)} aria-label="Close preview">
               <i className="bi bi-x-lg"></i>
             </button>
-            <img src={activeImage} alt={product.name} className="lightbox-img" />
+            <img src={activeImage} alt={localizedName} className="lightbox-img" />
           </div>
         </div>,
         document.body

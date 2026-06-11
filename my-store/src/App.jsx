@@ -128,6 +128,7 @@ function App() {
       const mapped = firestoreProducts.map((p) => ({
         id: p.id,
         name: toTitleCase(p.name || ""),
+        nameAr: p.nameAr || "",
         costPrice: parseFloat(p.costPrice) || 0,
         sellPrice: parseFloat(p.sellPrice ?? p.price) || 0,
         price: parseFloat(p.sellPrice ?? p.price) || 0,
@@ -135,8 +136,10 @@ function App() {
         image: p.image || (p.images && p.images[0]) || "",
         images: p.images || [],
         category: p.category || "",
+        categoryAr: p.categoryAr || "",
         details: p.details || p.description || "",
         description: p.description || p.details || "",
+        descriptionAr: p.descriptionAr || "",
         stock: p.stock || 0,
         sizes: p.sizes || [],
         colors: p.colors || [],
@@ -161,6 +164,17 @@ function App() {
   const categories = useMemo(() => {
     return [...new Set(products.map((p) => p.category).filter(Boolean))];
   }, [products]);
+
+  const categoryLabels = useMemo(() => {
+    const labels = {};
+    const isArabic = i18n.language === "ar";
+    products.forEach((p) => {
+      if (p.category) {
+        labels[p.category] = isArabic ? (p.categoryAr || p.category) : p.category;
+      }
+    });
+    return labels;
+  }, [products, i18n.language]);
 
   const priceRange = useMemo(() => {
     if (products.length === 0) return [0, 1000];
@@ -431,18 +445,19 @@ function App() {
           navigate={setCurrentPage}
         />
       ) : (
-        <div className="container mt-4">
+        <div className="container mt-4 home-page">
         {/* HERO SECTION */}
         {!hasActiveFilters && (
-          <div className="hero-section text-center px-4">
-            <h1 className="fw-bold mb-3 display-4">{t('app.hero_title')}</h1>
-            <p className="lead opacity-75 mb-4 max-w-md mx-auto">
-              {t('app.hero_desc')}
-            </p>
+          <div className="hero-section text-center">
+            <h1 className="hero-title fw-bold">{t('app.hero_title')}</h1>
+            <p className="hero-desc mx-auto">{t('app.hero_desc')}</p>
             <button
-              className="btn btn-light rounded-pill px-4 py-2 fw-semibold shadow-sm"
+              className="btn btn-light rounded-pill hero-cta px-4 py-2 fw-semibold shadow-sm"
               onClick={() =>
-                window.scrollTo({ top: 400, behavior: "smooth" })
+                document.getElementById("shop-products")?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                })
               }
             >
               {t('app.shop_now')} <i className="bi bi-arrow-down ms-1"></i>
@@ -451,10 +466,11 @@ function App() {
         )}
 
         {/* SHOP LAYOUT */}
-        <div className="shop-layout">
+        <div className="shop-layout" id="shop-products">
           {/* FILTER SIDEBAR */}
           <FilterSidebar
             categories={categories}
+            categoryLabels={categoryLabels}
             productCounts={productCounts}
             selectedCategories={filters.categories}
             minPrice={filters.minPrice}
@@ -477,6 +493,7 @@ function App() {
               totalResults={filteredProducts.length}
               currentPageResults={paginatedProducts.length}
               selectedCategories={filters.categories}
+              categoryLabels={categoryLabels}
               minPrice={filters.minPrice}
               maxPrice={filters.maxPrice}
               priceRange={priceRange}

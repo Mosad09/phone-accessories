@@ -1,13 +1,18 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import { subscribeToUserOrders } from "../services/firestoreService";
 import { getLocalOrders } from "../services/db";
+import { getLocalizedField } from "../utils/localization";
 
 function Orders({ user, navigate }) {
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error] = useState(null);
+  useTranslation();
+
+  const getItemName = (item) => getLocalizedField(item, "name") || item.name || "";
 
   useEffect(() => {
     // A user change starts a fresh subscription/loading cycle.
@@ -112,9 +117,9 @@ function Orders({ user, navigate }) {
 
                 {items.map((item, itemIdx) => (
                   <div key={itemIdx} className="d-flex align-items-center order-item-row mb-3 pb-3 border-bottom border-light">
-                    <img src={item.image} alt={item.name} width="50" height="50" className="rounded object-fit-cover me-3" />
+                    <img src={item.image} alt={getItemName(item)} width="50" height="50" className="rounded object-fit-cover me-3" />
                     <div className="flex-grow-1">
-                      <h6 className="mb-1">{item.name}</h6>
+                      <h6 className="mb-1">{getItemName(item)}</h6>
                       <small className="text-muted-custom">Qty: {item.qty}</small>
                     </div>
                     <div className="fw-semibold">

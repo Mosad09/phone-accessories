@@ -4,11 +4,14 @@ import { subscribeToProducts, createProductWithId, updateProduct, deleteProduct,
 
 const initialForm = {
   name: "",
+  nameAr: "",
   description: "",
+  descriptionAr: "",
   costPrice: "",
   price: "",
   discountPrice: "",
   category: "",
+  categoryAr: "",
   stock: "100",
   featured: false,
   image: ""
@@ -48,11 +51,14 @@ function AdminProducts() {
       setCurrentImagePublicId(product.imagePublicIds?.[0] || "");
       setFormData({
         name: product.name || "",
+        nameAr: product.nameAr || "",
         description: product.description || product.details || "",
+        descriptionAr: product.descriptionAr || "",
         costPrice: product.costPrice || "",
         price: product.sellPrice || product.price || "",
         discountPrice: product.discountPrice || "",
         category: product.category || "",
+        categoryAr: product.categoryAr || "",
         stock: product.stock !== undefined ? product.stock : "100",
         featured: product.featured || false,
         image: product.image || ""
@@ -183,12 +189,15 @@ function AdminProducts() {
       
       const payload = {
         name: formData.name,
+        nameAr: formData.nameAr,
         description: formData.description,
+        descriptionAr: formData.descriptionAr,
         costPrice: Number(formData.costPrice) || 0,
         sellPrice: Number(formData.price),
         price: Number(formData.price),
         discountPrice: formData.discountPrice ? Number(formData.discountPrice) : null,
         category: formData.category,
+        categoryAr: formData.categoryAr,
         stock: Number(formData.stock),
         featured: formData.featured,
       };
@@ -258,10 +267,15 @@ function AdminProducts() {
     }
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter(p => {
+    const term = searchTerm.toLowerCase();
+    return (
+      p.name?.toLowerCase().includes(term) ||
+      p.nameAr?.toLowerCase().includes(term) ||
+      p.category?.toLowerCase().includes(term) ||
+      p.categoryAr?.toLowerCase().includes(term)
+    );
+  });
 
   if (loading) {
     return <div className="text-center py-5"><div className="spinner-border text-primary-custom"></div></div>;
@@ -380,14 +394,24 @@ function AdminProducts() {
                 <div className="row g-4">
                   
                   {/* Basic Info */}
-                  <div className="col-12">
-                    <label className="form-label fw-medium">Product Name *</label>
-                    <input type="text" className="form-control" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">English Product Name *</label>
+                    <input type="text" className="form-control" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} dir="ltr" />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">Arabic Product Name</label>
+                    <input type="text" className="form-control" value={formData.nameAr} onChange={e => setFormData({...formData, nameAr: e.target.value})} dir="rtl" />
                   </div>
                   
                   <div className="col-md-6">
-                    <label className="form-label fw-medium">Category *</label>
-                    <input type="text" className="form-control" required value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} placeholder="e.g. Headphones" />
+                    <label className="form-label fw-medium">English Category *</label>
+                    <input type="text" className="form-control" required value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} placeholder="e.g. Headphones" dir="ltr" />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">Arabic Category</label>
+                    <input type="text" className="form-control" value={formData.categoryAr} onChange={e => setFormData({...formData, categoryAr: e.target.value})} placeholder="e.g. سماعات" dir="rtl" />
                   </div>
                   
                   <div className="col-md-6">
@@ -417,9 +441,14 @@ function AdminProducts() {
                     </div>
                   </div>
                   
-                  <div className="col-12">
-                    <label className="form-label fw-medium">Description</label>
-                    <textarea className="form-control" rows="4" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">English Description</label>
+                    <textarea className="form-control" rows="4" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} dir="ltr"></textarea>
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">Arabic Description</label>
+                    <textarea className="form-control" rows="4" value={formData.descriptionAr} onChange={e => setFormData({...formData, descriptionAr: e.target.value})} dir="rtl"></textarea>
                   </div>
                   
                   <div className="col-12">

@@ -2,6 +2,7 @@ function ActiveFilters({
   totalResults,
   currentPageResults,
   selectedCategories,
+  categoryLabels = {},
   minPrice,
   maxPrice,
   priceRange,
@@ -19,7 +20,7 @@ function ActiveFilters({
   selectedCategories.forEach((cat) => {
     chips.push({
       key: `cat-${cat}`,
-      label: cat,
+      label: categoryLabels[cat] || cat,
       onRemove: () => onRemoveCategory(cat),
     });
   });

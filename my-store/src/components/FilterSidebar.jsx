@@ -4,7 +4,8 @@ import noUiSlider from "nouislider";
 import "nouislider/dist/nouislider.css";
 
 function FilterSidebar({
-  categories,        // string[] — all available categories
+  categories,        // string[] — canonical English category keys
+  categoryLabels,    // { [category]: string } — localized display labels
   productCounts,     // { [category]: number } — count per category
   selectedCategories,// string[] — currently selected
   minPrice,
@@ -120,7 +121,7 @@ function FilterSidebar({
                 checked={selectedCategories.includes(cat)}
                 onChange={() => onCategoryToggle(cat)}
               />
-              <span className="filter-checkbox-label">{cat}</span>
+              <span className="filter-checkbox-label">{categoryLabels?.[cat] || cat}</span>
               <span className="filter-checkbox-count">
                 {productCounts[cat] || 0}
               </span>
