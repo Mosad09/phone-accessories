@@ -52,7 +52,6 @@ function toArray(value) {
 }
 
 function ProductDetailSkeleton() {
-  const { t, i18n } = useTranslation();
   return (
     <div className="container mt-4 mb-5 product-detail-shell">
       <div className="skeleton detail-skeleton-line detail-skeleton-breadcrumb mb-4"></div>
@@ -105,6 +104,7 @@ function ProductDetailPage({
   navigate,
 }) {
   const { id } = useParams();
+  const { t } = useTranslation();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);

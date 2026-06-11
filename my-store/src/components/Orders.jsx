@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
+
 import { subscribeToUserOrders } from "../services/firestoreService";
 import { getLocalOrders } from "../services/db";
 
 function Orders({ user, navigate }) {
-  const { t, i18n } = useTranslation();
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error] = useState(null);

@@ -7,7 +7,7 @@ function formatPrice(price) {
 }
 
 function WishlistPage({ wishlist, removeFromWishlist, addToCart, navigate }) {
-  const { t, i18n } = useTranslation();
+
   const [toast, setToast] = useState({ show: false, message: "" });
 
   // Auto-hide toast after 2s
@@ -80,7 +80,7 @@ function WishlistPage({ wishlist, removeFromWishlist, addToCart, navigate }) {
                     <span className="text-muted small mb-2 d-block">{item.category}</span>
                   )}
                   <div className="mt-auto pt-3 d-flex align-items-center justify-content-between border-top">
-                    <span className="fw-bold text-primary-custom">{t("navbar.currency")} {formatPrice(item.price)}</span>
+                    <span className="fw-bold text-primary-custom">EGP {formatPrice(item.price)}</span>
                     <button
                       className="btn btn-sm btn-primary-custom px-3 py-1 rounded-pill shadow-sm"
                       onClick={() => handleAddToCart(item)}

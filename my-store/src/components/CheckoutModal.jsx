@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
+
 
 function formatPrice(price) {
   if (!price && price !== 0) return "0";
@@ -18,7 +18,7 @@ function addressToString(address) {
 }
 
 function CheckoutModal({ isOpen, onClose, cart, totalPrice, user, dbUser, onOrderConfirmed }) {
-  const { t, i18n } = useTranslation();
+
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");

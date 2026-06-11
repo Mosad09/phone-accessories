@@ -33,7 +33,7 @@ const EGYPT_LOCATIONS = {
 };
 
 function Profile({ user, dbUser, setDbUser }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [governorate, setGovernorate] = useState("");
   const [city, setCity] = useState("");
   const [detail, setDetail] = useState("");

@@ -8,7 +8,7 @@ function formatPrice(price) {
 }
 
 function CartPage({ cart, updateQuantity, removeFromCart, totalPrice, navigate, user, dbUser, onOrderConfirmed }) {
-  const { t, i18n } = useTranslation();
+
   const [showCheckout, setShowCheckout] = useState(false);
 
   return (

@@ -32,7 +32,6 @@ function App() {
   const routerNavigate = useNavigate();
   // ================= STATE =================
   const [products, setProducts] = useState([]);
-  const [showCart, setShowCart] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [user, setUser] = useState(null);

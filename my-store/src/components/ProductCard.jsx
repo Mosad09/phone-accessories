@@ -10,7 +10,7 @@ function formatPrice(price) {
 }
 
 function ProductCard({ product, addToCart, addToWishlist, isInWishlist }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [toast, setToast] = useState({ show: false, message: "" });
   const cardRef = useRef(null);
   const navigate = useNavigate();
