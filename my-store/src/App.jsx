@@ -68,13 +68,8 @@ function App() {
 
   // Sync URL with state
   const setCurrentPage = useCallback((page) => {
-    setCurrentPageState(page);
     routerNavigate(`/${page === "home" ? "" : page}`);
   }, [routerNavigate]);
-
-  useEffect(() => {
-    setCurrentPageState(getPageFromPath(location.pathname));
-  }, [location.pathname]);
 
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem("cart");
