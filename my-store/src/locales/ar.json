@@ -50,15 +50,20 @@
     "empty": "قائمة الأمنيات فارغة."
   },
   "filters": {
+    "title": "تصفية",
+    "category": "الفئة",
     "categories": "الفئات",
     "price_range": "نطاق السعر",
     "min": "الحد الأدنى",
     "max": "الحد الأقصى",
     "sort_by": "ترتيب حسب",
+    "sort_relevance": "الأكثر صلة",
     "sort_default": "المميزة",
     "sort_price_asc": "السعر: من الأقل للأعلى",
     "sort_price_desc": "السعر: من الأعلى للأقل",
-    "sort_name_asc": "الاسم: أ إلى ي"
+    "sort_name_asc": "الاسم: أ إلى ي",
+    "clear_all": "مسح كل عوامل التصفية",
+    "close": "إغلاق"
   },
   "checkout": {
     "title": "إتمام الدفع",

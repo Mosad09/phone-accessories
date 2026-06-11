@@ -1311,6 +1311,12 @@ textarea:focus-visible,
   margin-bottom: 14px;
   display: flex;
   align-items: center;
+  text-align: start;
+}
+
+html[dir="rtl"] .filter-section-title {
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .filter-section-title i {
@@ -1508,47 +1514,75 @@ textarea:focus-visible,
 .filter-drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(4px);
-  z-index: 1040;
-  animation: fadeIn 0.3s forwards;
+  background: rgba(15, 23, 42, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 10050;
   opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.32s ease, visibility 0.32s ease;
+}
+
+.filter-drawer-overlay.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .filter-drawer {
   position: fixed;
   top: 0;
-  left: -320px;
-  width: 300px;
-  max-width: 85vw;
+  bottom: 0;
+  left: 0;
+  width: min(88vw, 400px);
+  max-width: 400px;
   height: 100dvh;
+  max-height: 100dvh;
   background: var(--surface-color);
-  z-index: 1050;
-  box-shadow: 5px 0 25px rgba(0,0,0,0.1);
+  z-index: 10060;
+  box-shadow: 8px 0 32px rgba(15, 23, 42, 0.18);
   display: flex;
   flex-direction: column;
   visibility: hidden;
   pointer-events: none;
-  transition: left 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateX(-105%);
+  transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.34s ease;
+  overscroll-behavior: contain;
 }
 
 .filter-drawer.open {
-  left: 0;
   visibility: visible;
   pointer-events: auto;
+  transform: translateX(0);
+}
+
+html[dir="rtl"] .filter-drawer {
+  left: auto;
+  right: 0;
+  transform: translateX(105%);
+  box-shadow: -8px 0 32px rgba(15, 23, 42, 0.18);
+}
+
+html[dir="rtl"] .filter-drawer.open {
+  transform: translateX(0);
 }
 
 .filter-drawer-header {
   padding: 20px 24px;
+  padding-top: max(20px, env(safe-area-inset-top));
   border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
+  background: var(--surface-color);
 }
 
 .filter-drawer-header h5 {
   display: flex;
   align-items: center;
+  text-align: start;
 }
 
 .filter-drawer-header h5 i {
@@ -1556,9 +1590,24 @@ textarea:focus-visible,
 }
 
 .filter-drawer-body {
-  padding: 20px 24px max(20px, env(safe-area-inset-bottom));
+  padding: 20px 24px max(24px, env(safe-area-inset-bottom));
   overflow-y: auto;
   flex: 1;
+  -webkit-overflow-scrolling: touch;
+  text-align: start;
+}
+
+@media (max-width: 576px) {
+  .filter-drawer {
+    width: 90vw;
+    max-width: none;
+  }
+}
+
+@media (min-width: 577px) and (max-width: 991px) {
+  .filter-drawer {
+    width: min(85vw, 400px);
+  }
 }
 
 /* ══════════════════════════════════════

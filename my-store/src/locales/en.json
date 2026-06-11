@@ -50,15 +50,20 @@
     "empty": "Your wishlist is empty."
   },
   "filters": {
+    "title": "Filters",
+    "category": "Category",
     "categories": "Categories",
     "price_range": "Price Range",
     "min": "Min",
     "max": "Max",
     "sort_by": "Sort By",
+    "sort_relevance": "Relevance",
     "sort_default": "Featured",
     "sort_price_asc": "Price: Low to High",
     "sort_price_desc": "Price: High to Low",
-    "sort_name_asc": "Name: A to Z"
+    "sort_name_asc": "Name: A to Z",
+    "clear_all": "Clear All Filters",
+    "close": "Close"
   },
   "checkout": {
     "title": "Checkout",
