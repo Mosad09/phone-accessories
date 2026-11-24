@@ -1,4 +1,4 @@
-const CACHE_NAME = "veltrix-pwa-v1";
+const CACHE_NAME = "veltrix-pwa-v2";
 const STATIC_ASSETS = [
   "/manifest.webmanifest",
   "/manifest-admin.webmanifest",
@@ -51,7 +51,8 @@ self.addEventListener("fetch", (event) => {
         (cached) =>
           cached ||
           fetch(request).then((res) => {
-            if (res.ok) {
+            const contentType = res.headers.get("content-type") || "";
+            if (res.ok && !contentType.includes("text/html")) {
               const copy = res.clone();
               caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
             }

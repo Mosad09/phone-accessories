@@ -1,5 +1,6 @@
 import React from 'react';
 import i18n from './i18n';
+import { attemptChunkRecovery, clearSwCaches, isChunkLoadError } from './utils/chunkRecovery';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -14,11 +15,15 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     this.setState({ error, errorInfo });
     console.error("ErrorBoundary caught an error", error, errorInfo);
+    if (isChunkLoadError(error)) {
+      attemptChunkRecovery();
+    }
   }
 
-  handleReset = () => {
+  handleReset = async () => {
+    await clearSwCaches();
     this.setState({ hasError: false, error: null, errorInfo: null });
-    window.location.href = '/';
+    window.location.href = window.location.pathname.startsWith('/admin') ? '/admin/' : '/';
   };
 
   render() {
@@ -39,13 +44,17 @@ class ErrorBoundary extends React.Component {
               <i className="bi bi-arrow-clockwise me-2"></i>
               {btnText}
             </button>
-            {import.meta.env.DEV && this.state.error && (
+            {this.state.error && (
               <details className="mt-4 text-start small text-muted-custom" style={{ whiteSpace: 'pre-wrap' }}>
                 <summary className="cursor-pointer fw-semibold">Technical Details</summary>
                 <div className="mt-2 p-2 bg-light rounded">
-                  {this.state.error.toString()}
-                  <br />
-                  {this.state.errorInfo?.componentStack}
+                  {this.state.error.message || this.state.error.toString()}
+                  {import.meta.env.DEV && this.state.errorInfo?.componentStack && (
+                    <>
+                      <br />
+                      {this.state.errorInfo.componentStack}
+                    </>
+                  )}
                 </div>
               </details>
             )}

@@ -48,9 +48,19 @@ import {
   getOriginalPrice,
   hasDiscount,
 } from "./utils/pricing";
+import { attemptChunkRecovery, isChunkLoadError } from "./utils/chunkRecovery";
 import { useTranslation } from "react-i18next";
 
-const AdminPanel = lazy(() => import("./components/admin/AdminPanel"));
+const AdminPanel = lazy(async () => {
+  try {
+    return await import("./components/admin/AdminPanel");
+  } catch (error) {
+    if (isChunkLoadError(error) && (await attemptChunkRecovery())) {
+      return new Promise(() => {});
+    }
+    throw error;
+  }
+});
 const MotionSection = motion.section;
 const MotionDiv = motion.div;
 

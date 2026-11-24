@@ -14,20 +14,30 @@ export default defineConfig({
       },
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('@firebase') || id.includes('firebase')) {
+          const normalized = id.replace(/\\/g, '/');
+          if (normalized.includes('/node_modules/')) {
+            if (normalized.includes('/@firebase/') || normalized.includes('/firebase/')) {
               return 'vendor-firebase';
             }
-            if (id.includes('framer-motion')) {
+            if (normalized.includes('/framer-motion/')) {
               return 'vendor-motion';
             }
-            if (id.includes('i18next') || id.includes('react-i18next')) {
+            if (normalized.includes('/i18next/') || normalized.includes('/react-i18next/')) {
               return 'vendor-i18n';
             }
-            if (id.includes('react-router') || id.includes('react-dom') || id.includes('/react/')) {
+            if (
+              normalized.includes('/react-router') ||
+              normalized.includes('/react-dom/') ||
+              normalized.includes('/react/') ||
+              normalized.includes('/scheduler/')
+            ) {
               return 'vendor-react';
             }
-            if (id.includes('nouislider') || id.includes('papaparse') || id.includes('bootstrap')) {
+            if (
+              normalized.includes('/nouislider/') ||
+              normalized.includes('/papaparse/') ||
+              normalized.includes('/bootstrap/')
+            ) {
               return 'vendor-ui';
             }
           }
