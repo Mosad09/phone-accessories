@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "@firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "@firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from "@firebase/auth";
 import { getFirestore } from "@firebase/firestore";
 
 const firebaseConfig = {
@@ -23,6 +23,13 @@ export const loginWithGoogle = async () => {
     const token = await result.user.getIdToken();
     return { user: result.user, token };
   } catch (error) {
+    if (
+      error?.code === "auth/popup-blocked" ||
+      error?.code === "auth/operation-not-supported-in-this-environment"
+    ) {
+      await signInWithRedirect(auth, provider);
+      return null;
+    }
     console.error("[Auth] Google Sign-In Error:", error.code, error.message);
     throw error;
   }

@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    // Products: anyone can browse; only admins can create/update/delete
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Storefront CMS Settings & Offers: anyone can read; only admins can write
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Customer Reviews: anyone can read; signed-in users manage their own; admins manage all
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Newsletter Subscribers: anyone can subscribe; only admins can read/delete list
+    match /subscribers/{subscriberId} {
+      allow create, update: if request.resource.data.email is string && request.resource.data.email.size() > 3;
+      allow read, delete: if isAdmin();
+    }
+
+    // User Profiles: users read/update their own doc (without changing role); admins manage all
+    match /users/{userId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        resource.data.email == request.auth.token.email ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+        !("role" in request.resource.data);
+      allow update: if isAdmin() || (
+        isSignedIn() && request.auth.uid == userId &&
+        request.resource.data.get("role", null) == resource.data.get("role", null)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Orders: guests and signed-in customers can create; customers read/cancel pending own orders; admins manage all
+    match /orders/{orderId} {
+      allow create: if request.resource.data.items is list;
+      allow read: if isAdmin() || (
+        isSignedIn() && (
+          resource.data.userId == request.auth.uid ||
+          resource.data.email == request.auth.token.email
+        )
+      );
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        (resource.data.userId == request.auth.uid || resource.data.email == request.auth.token.email) &&
+        resource.data.status == "pending" &&
+        request.resource.data.status == "cancelled"
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Customer Notifications: created on order updates; users read & mark own as read
+    match /notifications/{notificationId} {
+      allow create: if true;
+      allow read: if isAdmin() || (
+        isSignedIn() && (
+          resource.data.userId == request.auth.uid ||
+          resource.data.email == request.auth.token.email
+        )
+      );
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        (resource.data.userId == request.auth.uid || resource.data.email == request.auth.token.email) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Transactional Mail Queue
+    match /mail/{mailId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
