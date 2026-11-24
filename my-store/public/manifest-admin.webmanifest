@@ -1,0 +1,26 @@
+{
+  "id": "/admin/",
+  "name": "Veltrix Admin Console",
+  "short_name": "Veltrix Admin",
+  "description": "Standalone store management app for Veltrix products, orders, analytics, offers & site customization.",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#11161b",
+  "theme_color": "#13222b",
+  "icons": [
+    {
+      "src": "/icons/admin-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/admin-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

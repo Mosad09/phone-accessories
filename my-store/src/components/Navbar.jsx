@@ -5,6 +5,8 @@ import { loginWithGoogle, logout } from "../utils/firebase";
 import { useTranslation } from "react-i18next";
 import { getLocalizedField } from "../utils/localization";
 import { formatPrice, getEffectivePrice } from "../utils/pricing";
+import BrandLogo from "./BrandLogo";
+import { usePwaInstall } from "../hooks/usePwaInstall";
 
 function Navbar({
   cartCount,
@@ -13,6 +15,8 @@ function Navbar({
   notificationCount = 0,
   onMarkNotificationRead,
   onMarkAllNotificationsRead,
+  brand,
+  onShowInstallGuide,
   search,
   onSearchChange,
   cartPulse,
@@ -28,6 +32,7 @@ function Navbar({
   toggleTheme,
 }) {
   const { t, i18n } = useTranslation();
+  const { canPrompt, isIos, isInstalled, promptInstall } = usePwaInstall();
   const [inputValue, setInputValue] = useState(search || "");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -270,6 +275,17 @@ function Navbar({
   };
 
   const languageLabel = i18n.language === "ar" ? "EN" : "عربي";
+  const isArabic = i18n.language === "ar";
+  const brandFirst = isArabic ? (brand?.nameArPrimary || t("navbar.brand_vel")) : (brand?.namePrimary || t("navbar.brand_vel"));
+  const brandSecond = isArabic ? (brand?.nameArAccent || t("navbar.brand_trix")) : (brand?.nameAccent || t("navbar.brand_trix"));
+
+  const handleInstallClick = async () => {
+    if (canPrompt) {
+      await promptInstall();
+    } else if (onShowInstallGuide) {
+      onShowInstallGuide();
+    }
+  };
 
   const renderLanguageToggle = (variant = "desktop") => (
     <button
@@ -380,6 +396,15 @@ function Navbar({
                       <i className="bi bi-speedometer2"></i>
                       {t("navbar.admin_panel")}
                     </button>
+                    <a
+                      className="dropdown-item"
+                      href="/admin/"
+                      role="menuitem"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <i className="bi bi-phone"></i>
+                      {t("navbar.standalone_admin")}
+                    </a>
                   </>
                 )}
                 <hr className="dropdown-divider" />
@@ -492,22 +517,33 @@ function Navbar({
         <div className="navbar-header-row">
           <a
             className="navbar-brand d-flex align-items-center fw-bold fs-4"
-            href="#"
+            href="/"
             onClick={(e) => {
               e.preventDefault();
               navigate("home");
             }}
           >
-            <span className="brand-logo-mark me-2" aria-hidden="true">
-              <i className="bi bi-layers-fill"></i>
+            <span className="me-2 d-inline-flex align-items-center">
+              <BrandLogo type={brand?.logoType} customUrl={brand?.logoUrl} size={34} />
             </span>
             <span className="navbar-brand-name">
-              {t("navbar.brand_vel")}
-              <span className="text-primary-custom">{t("navbar.brand_trix")}</span>
+              {brandFirst}
+              <span className="text-primary-custom">{brandSecond}</span>
             </span>
           </a>
 
           <div className="navbar-header-actions">
+            {!isInstalled && (canPrompt || isIos) && !isMobile && (
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-primary-custom rounded-pill px-3 d-none d-lg-inline-flex align-items-center gap-1"
+                onClick={handleInstallClick}
+                title={t("footer.install_app")}
+              >
+                <i className="bi bi-phone"></i>
+                <span>{t("footer.install_app")}</span>
+              </button>
+            )}
             <button
               type="button"
               className="cart-btn-nav navbar-search-jump"
@@ -642,6 +678,17 @@ function Navbar({
             )}
             {renderLanguageToggle("utility")}
             {renderThemeToggle("utility")}
+            {!isInstalled && (canPrompt || isIos) && (
+              <button
+                type="button"
+                className="navbar-utility-pill"
+                onClick={handleInstallClick}
+                aria-label={t("footer.install_app")}
+              >
+                <i className="bi bi-phone" aria-hidden="true"></i>
+                <span className="navbar-utility-pill-text">{t("footer.install_app_short")}</span>
+              </button>
+            )}
           </div>
         )}
 

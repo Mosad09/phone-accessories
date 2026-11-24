@@ -1,27 +1,30 @@
 import { useTranslation } from "react-i18next";
 
-const TRUST_ITEMS = [
-  { icon: "bi-truck", titleKey: "trust.shipping_title", descKey: "trust.shipping_desc" },
-  { icon: "bi-patch-check", titleKey: "trust.warranty_title", descKey: "trust.warranty_desc" },
-  { icon: "bi-wallet2", titleKey: "trust.payment_title", descKey: "trust.payment_desc" },
-  { icon: "bi-headset", titleKey: "trust.support_title", descKey: "trust.support_desc" },
-];
+function TrustBadges({ config }) {
+  const { t, i18n } = useTranslation();
 
-function TrustBadges() {
-  const { t } = useTranslation();
+  if (!config || config.enabled === false || !Array.isArray(config.items) || config.items.length === 0) {
+    return null;
+  }
+
+  const isArabic = i18n.language === "ar";
 
   return (
     <section className="trust-badges-section" aria-label={t("trust.section_title")}>
       <div className="container">
         <div className="trust-badges-grid">
-          {TRUST_ITEMS.map((item) => (
-            <div key={item.titleKey} className="trust-badge-card">
+          {config.items.map((item) => (
+            <div key={item.id} className="trust-badge-card">
               <div className="trust-badge-icon" aria-hidden="true">
-                <i className={`bi ${item.icon}`}></i>
+                <i className={`bi ${item.icon || "bi-patch-check"}`}></i>
               </div>
               <div className="trust-badge-copy">
-                <h6 className="trust-badge-title">{t(item.titleKey)}</h6>
-                <p className="trust-badge-desc">{t(item.descKey)}</p>
+                <h6 className="trust-badge-title">
+                  {isArabic ? (item.titleAr || item.titleEn) : item.titleEn}
+                </h6>
+                <p className="trust-badge-desc">
+                  {isArabic ? (item.descAr || item.descEn) : item.descEn}
+                </p>
               </div>
             </div>
           ))}

@@ -1,33 +1,8 @@
+import { DEFAULT_STORE_SETTINGS } from "../services/storeSettings";
+
 /**
- * Shared pricing, discount, coupon, and cart calculation utilities.
+ * Shared pricing, discount, coupon, and dynamic shipping calculation utilities.
  */
-
-export const FREE_SHIPPING_THRESHOLD = 1000;
-export const STANDARD_SHIPPING_FEE = 60;
-
-export const PROMO_CODES = {
-  VELTRIX10: {
-    code: "VELTRIX10",
-    type: "percent",
-    value: 10,
-    minSubtotal: 0,
-    labelKey: "cart.promo_veltrix10",
-  },
-  SAVE50: {
-    code: "SAVE50",
-    type: "fixed",
-    value: 50,
-    minSubtotal: 300,
-    labelKey: "cart.promo_save50",
-  },
-  FREESHIP: {
-    code: "FREESHIP",
-    type: "shipping",
-    value: 0,
-    minSubtotal: 0,
-    labelKey: "cart.promo_freeship",
-  },
-};
 
 export function hasDiscount(product) {
   if (!product) return false;
@@ -72,22 +47,32 @@ export function getCartItemKey(item) {
   return item?.cartKey || buildCartItemKey(item?.id, item);
 }
 
-export function validatePromoCode(code, subtotal) {
+export function getActivePromoCodes(shippingAndOffers) {
+  const config = shippingAndOffers || DEFAULT_STORE_SETTINGS.shippingAndOffers;
+  if (config.promoCodesEnabled === false) return [];
+  return (config.promoCodes || []).filter((p) => p && p.active !== false && String(p.code || "").trim());
+}
+
+export function validatePromoCode(code, subtotal, shippingAndOffers) {
   const normalized = String(code || "").trim().toUpperCase();
   if (!normalized) return { valid: false, reason: "empty" };
 
-  const promo = PROMO_CODES[normalized];
+  const activeCodes = getActivePromoCodes(shippingAndOffers);
+  const promo = activeCodes.find((p) => String(p.code || "").trim().toUpperCase() === normalized);
   if (!promo) return { valid: false, reason: "invalid" };
 
-  if (subtotal < promo.minSubtotal) {
-    return { valid: false, reason: "min_not_met", minSubtotal: promo.minSubtotal, promo };
+  const minSubtotal = Number(promo.minSubtotal) || 0;
+  if (subtotal < minSubtotal) {
+    return { valid: false, reason: "min_not_met", minSubtotal, promo };
   }
 
   return { valid: true, promo };
 }
 
-export function calculateCartTotals(cart = [], couponCode = "") {
+export function calculateCartTotals(cart = [], couponCode = "", shippingAndOffers = null) {
   const safeCart = Array.isArray(cart) ? cart : [];
+  const offerConfig = shippingAndOffers || DEFAULT_STORE_SETTINGS.shippingAndOffers;
+
   const originalSubtotal = safeCart.reduce(
     (sum, item) => sum + getOriginalPrice(item) * Math.max(1, Number(item.qty) || 1),
     0
@@ -98,31 +83,39 @@ export function calculateCartTotals(cart = [], couponCode = "") {
   );
   const itemDiscountSavings = Math.max(0, originalSubtotal - subtotal);
 
-  const validation = couponCode ? validatePromoCode(couponCode, subtotal) : { valid: false };
+  const validation = couponCode ? validatePromoCode(couponCode, subtotal, offerConfig) : { valid: false };
   const appliedPromo = validation.valid ? validation.promo : null;
 
   let couponDiscount = 0;
   if (appliedPromo) {
+    const val = Number(appliedPromo.value) || 0;
     if (appliedPromo.type === "percent") {
-      couponDiscount = Math.round((subtotal * appliedPromo.value) / 100);
+      couponDiscount = Math.round((subtotal * val) / 100);
     } else if (appliedPromo.type === "fixed") {
-      couponDiscount = Math.min(subtotal, appliedPromo.value);
+      couponDiscount = Math.min(subtotal, val);
     }
   }
 
   const discountedSubtotal = Math.max(0, subtotal - couponDiscount);
+  const freeShippingEnabled = offerConfig.freeShippingEnabled !== false;
+  const threshold = Math.max(0, Number(offerConfig.freeShippingThreshold) || 0);
+  const baseShippingFee = Math.max(0, Number(offerConfig.standardShippingFee) || 0);
+
+  const qualifiedByThreshold = freeShippingEnabled && threshold > 0 && discountedSubtotal >= threshold;
+  const qualifiedByCoupon = appliedPromo?.type === "shipping";
   const isFreeShipping =
     safeCart.length === 0 ||
-    discountedSubtotal >= FREE_SHIPPING_THRESHOLD ||
-    appliedPromo?.type === "shipping";
-  const shipping = safeCart.length === 0 || isFreeShipping ? 0 : STANDARD_SHIPPING_FEE;
+    baseShippingFee === 0 ||
+    qualifiedByThreshold ||
+    qualifiedByCoupon;
+
+  const shipping = safeCart.length === 0 || isFreeShipping ? 0 : baseShippingFee;
   const total = Math.max(0, discountedSubtotal + shipping);
 
-  const freeShippingProgress = Math.min(
-    100,
-    Math.round((discountedSubtotal / FREE_SHIPPING_THRESHOLD) * 100)
-  );
-  const amountToFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - discountedSubtotal);
+  const freeShippingProgress = threshold > 0
+    ? Math.min(100, Math.round((discountedSubtotal / threshold) * 100))
+    : 100;
+  const amountToFreeShipping = threshold > 0 ? Math.max(0, threshold - discountedSubtotal) : 0;
 
   return {
     subtotal,
@@ -132,6 +125,8 @@ export function calculateCartTotals(cart = [], couponCode = "") {
     couponDiscount,
     shipping,
     isFreeShipping,
+    freeShippingEnabled: freeShippingEnabled && threshold > 0,
+    freeShippingThreshold: threshold,
     freeShippingProgress,
     amountToFreeShipping,
     total,

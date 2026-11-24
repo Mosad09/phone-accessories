@@ -8,8 +8,6 @@ import {
   getEffectivePrice,
 } from "../utils/pricing";
 
-const WHATSAPP_NUMBER = "201125522130";
-
 function addressToString(address) {
   if (!address) return "";
   if (typeof address === "string") return address;
@@ -56,19 +54,32 @@ function createOrderPayload({
   };
 }
 
-function CheckoutModalContent({ onClose, cart, couponCode, user, dbUser, onOrderConfirmed }) {
+function CheckoutModalContent({
+  onClose,
+  cart,
+  couponCode,
+  storeSettings,
+  user,
+  dbUser,
+  onOrderConfirmed,
+}) {
   const { t, i18n } = useTranslation();
+  const paymentMethods = storeSettings?.footer?.paymentMethods?.length
+    ? storeSettings.footer.paymentMethods
+    : ["Cash on Delivery", "Vodafone Cash", "InstaPay"];
+  const whatsappNumber = String(storeSettings?.footer?.whatsappNumber || "201125522130").replace(/[^\d]/g, "");
+
   const [fullName, setFullName] = useState(() => (user ? dbUser?.name || user.displayName || "" : ""));
   const [phone, setPhone] = useState(() => (user ? dbUser?.phone || user.phoneNumber || "" : ""));
   const [email, setEmail] = useState(() => (user ? dbUser?.email || user.email || "" : ""));
   const [address, setAddress] = useState(() => (user ? addressToString(dbUser?.address) : ""));
-  const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
+  const [paymentMethod, setPaymentMethod] = useState(() => paymentMethods[0] || "Cash on Delivery");
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState({});
-  const [step, setStep] = useState("form"); // "form" | "confirm"
+  const [step, setStep] = useState("form");
   const modalRef = useRef(null);
 
-  const totals = calculateCartTotals(cart, couponCode);
+  const totals = calculateCartTotals(cart, couponCode, storeSettings?.shippingAndOffers);
   const totalCount = cart.reduce((sum, item) => sum + Math.max(1, Number(item.qty) || 1), 0);
   const getItemName = (item) => getLocalizedField(item, "name") || item.name || "";
 
@@ -104,7 +115,8 @@ function CheckoutModalContent({ onClose, cart, couponCode, user, dbUser, onOrder
   };
 
   const buildWhatsAppMessage = () => {
-    let msg = "*New Order - Veltrix*\n\n";
+    const brandName = `${storeSettings?.brand?.namePrimary || "Vel"}${storeSettings?.brand?.nameAccent || "trix"}`;
+    let msg = `*New Order - ${brandName}*\n\n`;
     msg += `*Customer:* ${fullName.trim()}\n`;
     msg += `*Phone:* ${phone.trim()}\n`;
     msg += `*Email:* ${email.trim()}\n`;
@@ -128,7 +140,7 @@ function CheckoutModalContent({ onClose, cart, couponCode, user, dbUser, onOrder
   const handleSendToWhatsApp = () => {
     if (!validate()) return;
     const message = buildWhatsAppMessage();
-    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank");
     setStep("confirm");
   };
@@ -317,9 +329,9 @@ function CheckoutModalContent({ onClose, cart, couponCode, user, dbUser, onOrder
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
                 >
-                  <option value="Cash on Delivery">{t("checkout.payment_cod")}</option>
-                  <option value="Vodafone Cash">{t("checkout.payment_vodafone")}</option>
-                  <option value="InstaPay">{t("checkout.payment_instapay")}</option>
+                  {paymentMethods.map((method) => (
+                    <option key={method} value={method}>{method}</option>
+                  ))}
                 </select>
               </div>
 
@@ -339,14 +351,16 @@ function CheckoutModalContent({ onClose, cart, couponCode, user, dbUser, onOrder
             </div>
 
             <div className="checkout-modal-footer d-flex flex-column gap-2">
-              <button
-                type="button"
-                className="btn btn-primary-custom w-100 py-3 fw-bold d-flex align-items-center justify-content-center gap-2"
-                onClick={handleSendToWhatsApp}
-              >
-                <i className="bi bi-whatsapp fs-5"></i>
-                {t("checkout.send_whatsapp")}
-              </button>
+              {whatsappNumber && (
+                <button
+                  type="button"
+                  className="btn btn-primary-custom w-100 py-3 fw-bold d-flex align-items-center justify-content-center gap-2"
+                  onClick={handleSendToWhatsApp}
+                >
+                  <i className="bi bi-whatsapp fs-5"></i>
+                  {t("checkout.send_whatsapp")}
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-outline-custom w-100 py-2 fw-semibold"

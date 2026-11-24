@@ -75,10 +75,11 @@ export function normalizeStatus(status) {
   return ORDER_STATUSES.includes(normalized) ? normalized : "pending";
 }
 
-export function createTrackingNumber(date = new Date()) {
+export function createTrackingNumber(date = new Date(), prefix = "VTX") {
   const year = date.getFullYear();
   const sequence = `${date.getTime()}`.slice(-6).padStart(6, "0");
-  return `FLX-${year}-${sequence}`;
+  const cleanPrefix = String(prefix || "VTX").trim().toUpperCase().replace(/[^A-Z0-9]/g, "") || "VTX";
+  return `${cleanPrefix}-${year}-${sequence}`;
 }
 
 export function buildInitialTimeline(status = "pending", date = new Date()) {

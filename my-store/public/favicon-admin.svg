@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="vtxAdminGrad" x1="6" y1="6" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#13222b"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#vtxAdminGrad)"/>
+  <path d="M32 13 48 19.5v11.2c0 10.4-6.7 19.3-16 22.3-9.3-3-16-11.9-16-22.3V19.5L32 13Z" fill="rgba(255,255,255,0.12)" stroke="#5eead4" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="24" y="25" width="7" height="7" rx="1.8" fill="#ffffff"/>
+  <rect x="33" y="25" width="7" height="7" rx="1.8" fill="#fde68a"/>
+  <rect x="24" y="34" width="7" height="7" rx="1.8" fill="#5eead4"/>
+  <rect x="33" y="34" width="7" height="7" rx="1.8" fill="#ffffff"/>
+</svg>

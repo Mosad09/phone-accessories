@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -32,7 +33,10 @@ import {
   subscribeToUserNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  getCachedStoreSettings,
+  subscribeToStoreSettings,
 } from "./services/firestoreService";
+import { applyThemeToDocument } from "./services/storeSettings";
 import { toTitleCase } from "./utils/textUtils";
 import { getLocalizedField } from "./utils/localization";
 import {
@@ -69,9 +73,11 @@ function App() {
   const routerNavigate = useNavigate();
 
   // ================= STATE =================
+  const [storeSettings, setStoreSettings] = useState(() => getCachedStoreSettings());
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [user, setUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
   const currentPage = getPageFromPath(location.pathname);
@@ -85,11 +91,17 @@ function App() {
   const [couponCode, setCouponCode] = useState(() => localStorage.getItem("veltrix_coupon") || "");
 
   const { t, i18n } = useTranslation();
+  const isArabic = i18n.language === "ar";
 
   useEffect(() => {
     document.documentElement.dir = i18n.dir();
     document.documentElement.lang = i18n.language;
   }, [i18n, i18n.language]);
+
+  // ================= LIVE STORE SETTINGS =================
+  useEffect(() => {
+    return subscribeToStoreSettings(setStoreSettings);
+  }, []);
 
   // ================= SCROLL PROGRESS =================
   useEffect(() => {
@@ -104,9 +116,7 @@ function App() {
   }, []);
 
   // ================= THEME STATE =================
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem("theme") || "light";
-  });
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
 
   useEffect(() => {
     if (theme === "dark") {
@@ -115,13 +125,23 @@ function App() {
       document.body.classList.remove("dark-mode");
     }
     localStorage.setItem("theme", theme);
-  }, [theme]);
+    applyThemeToDocument(storeSettings.theme, theme === "dark");
+  }, [theme, storeSettings.theme]);
+
+  useEffect(() => {
+    const brandName = isArabic
+      ? `${storeSettings.brand?.nameArPrimary || "فيل"}${storeSettings.brand?.nameArAccent || "تريكس"}`
+      : `${storeSettings.brand?.namePrimary || "Vel"}${storeSettings.brand?.nameAccent || "trix"}`;
+    const subtitle = isArabic
+      ? storeSettings.hero?.titleAr || t("app.hero_title")
+      : storeSettings.hero?.titleEn || t("app.hero_title");
+    document.title = `${brandName} — ${subtitle}`;
+  }, [storeSettings.brand, storeSettings.hero, isArabic, t]);
 
   const toggleTheme = useCallback(() => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   }, []);
 
-  // Sync URL with state
   const setCurrentPage = useCallback((page) => {
     routerNavigate(`/${page === "home" ? "" : page}`);
   }, [routerNavigate]);
@@ -246,14 +266,13 @@ function App() {
 
   const categoryLabels = useMemo(() => {
     const labels = {};
-    const isArabic = i18n.language === "ar";
     products.forEach((p) => {
       if (p.category) {
         labels[p.category] = isArabic ? (p.categoryAr || p.category) : p.category;
       }
     });
     return labels;
-  }, [products, i18n.language]);
+  }, [products, isArabic]);
 
   const priceRange = useMemo(() => {
     if (products.length === 0) return [0, 1000];
@@ -293,7 +312,6 @@ function App() {
     } catch {
       return [];
     }
-    // Re-read when navigating back to home
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const recentlyViewedHome = useMemo(() => {
@@ -326,7 +344,6 @@ function App() {
     filters.onSaleOnly,
   ]);
 
-  // ================= PAGINATION =================
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / filters.perPage));
   const safePage = Math.min(filters.page, totalPages);
 
@@ -451,7 +468,7 @@ function App() {
         ...orderData,
         email: orderData.email || user?.email || "",
         userId: user?.uid || null,
-        language: i18n.language === "ar" ? "ar" : "en",
+        language: isArabic ? "ar" : "en",
       };
       await saveOrderToFirestore(firestoreOrder);
     } catch (err) {
@@ -476,85 +493,31 @@ function App() {
 
   const handleSelectSingleCategory = useCallback(
     (cat) => {
-      if (!cat) {
-        updateFilters({ categories: [] });
-        return;
-      }
-      updateFilters({ categories: [cat] });
+      updateFilters({ categories: cat ? [cat] : [] });
     },
     [updateFilters]
   );
 
   const handlePriceChange = useCallback(
-    (min, max) => {
-      updateFilters({ minPrice: min, maxPrice: max });
-    },
+    (min, max) => updateFilters({ minPrice: min, maxPrice: max }),
     [updateFilters]
   );
 
-  const handleSortChange = useCallback(
-    (sort) => {
-      updateFilters({ sort });
-    },
-    [updateFilters]
-  );
+  const handleSortChange = useCallback((sort) => updateFilters({ sort }), [updateFilters]);
+  const handleSearchChange = useCallback((search) => updateFilters({ search }), [updateFilters]);
+  const handleToggleInStock = useCallback((next) => updateFilters({ inStockOnly: Boolean(next) }), [updateFilters]);
+  const handleToggleOnSale = useCallback((next) => updateFilters({ onSaleOnly: Boolean(next) }), [updateFilters]);
+  const handlePageChange = useCallback((page) => updateFilters({ page }), [updateFilters]);
+  const handlePerPageChange = useCallback((perPage) => updateFilters({ perPage }), [updateFilters]);
 
-  const handleSearchChange = useCallback(
-    (search) => {
-      updateFilters({ search });
-    },
-    [updateFilters]
-  );
-
-  const handleToggleInStock = useCallback(
-    (next) => {
-      updateFilters({ inStockOnly: Boolean(next) });
-    },
-    [updateFilters]
-  );
-
-  const handleToggleOnSale = useCallback(
-    (next) => {
-      updateFilters({ onSaleOnly: Boolean(next) });
-    },
-    [updateFilters]
-  );
-
-  const handlePageChange = useCallback(
-    (page) => {
-      updateFilters({ page });
-    },
-    [updateFilters]
-  );
-
-  const handlePerPageChange = useCallback(
-    (perPage) => {
-      updateFilters({ perPage });
-    },
-    [updateFilters]
-  );
-
-  // ================= ACTIVE FILTER REMOVAL =================
   const handleRemoveCategory = useCallback(
-    (cat) => {
-      updateFilters({
-        categories: filters.categories.filter((c) => c !== cat),
-      });
-    },
+    (cat) => updateFilters({ categories: filters.categories.filter((c) => c !== cat) }),
     [filters.categories, updateFilters]
   );
 
-  const handleClearPrice = useCallback(() => {
-    updateFilters({ minPrice: 0, maxPrice: Infinity });
-  }, [updateFilters]);
-
-  const handleClearSearch = useCallback(() => {
-    updateFilters({ search: "" });
-  }, [updateFilters]);
-
-  const handleClearSort = useCallback(() => {
-    updateFilters({ sort: "default" });
-  }, [updateFilters]);
+  const handleClearPrice = useCallback(() => updateFilters({ minPrice: 0, maxPrice: Infinity }), [updateFilters]);
+  const handleClearSearch = useCallback(() => updateFilters({ search: "" }), [updateFilters]);
+  const handleClearSort = useCallback(() => updateFilters({ sort: "default" }), [updateFilters]);
 
   const hasActiveFilters =
     filters.categories.length > 0 ||
@@ -565,18 +528,343 @@ function App() {
     Boolean(filters.onSaleOnly) ||
     (filters.sort && filters.sort !== "default");
 
+  const heroCfg = storeSettings.hero || {};
+  const heroTitle = isArabic ? heroCfg.titleAr || heroCfg.titleEn : heroCfg.titleEn;
+  const heroKicker = isArabic ? heroCfg.kickerAr || heroCfg.kickerEn : heroCfg.kickerEn;
+  const heroSlogan = isArabic ? heroCfg.sloganAr || heroCfg.sloganEn : heroCfg.sloganEn;
+  const heroDesc = isArabic ? heroCfg.descAr || heroCfg.descEn : heroCfg.descEn;
+  const shopCta = isArabic ? heroCfg.shopCtaAr || t("app.shop_now") : heroCfg.shopCtaEn || t("app.shop_now");
+  const trackCta = isArabic ? heroCfg.trackCtaAr || t("app.track_order") : heroCfg.trackCtaEn || t("app.track_order");
+
+  const isTrustVisible =
+    storeSettings.trustBadges?.enabled !== false &&
+    storeSettings.sections?.find((s) => s.id === "trust")?.visible !== false;
+
+  const renderHomeSection = (section) => {
+    if (!section?.visible) return null;
+
+    switch (section.id) {
+      case "hero":
+        if (hasActiveFilters) return null;
+        return (
+          <MotionSection
+            key="hero"
+            className="hero-section premium-hero"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="hero-glow hero-glow-one" aria-hidden="true"></div>
+            <div className="hero-glow hero-glow-two" aria-hidden="true"></div>
+            <div className="hero-floating-shape shape-one" aria-hidden="true"></div>
+            <div className="hero-floating-shape shape-two" aria-hidden="true"></div>
+            <div className="hero-copy">
+              {heroKicker && <span className="hero-kicker">{heroKicker}</span>}
+              <h1 className="hero-title fw-bold">{heroTitle}</h1>
+              {heroSlogan && <p className="hero-slogan">{heroSlogan}</p>}
+              {heroDesc && <p className="hero-desc">{heroDesc}</p>}
+              <div className="hero-actions">
+                <button
+                  type="button"
+                  className="btn hero-cta-primary"
+                  onClick={() =>
+                    document.getElementById("shop-products")?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    })
+                  }
+                >
+                  {shopCta}
+                  <i className="bi bi-arrow-down ms-1"></i>
+                </button>
+                <button
+                  type="button"
+                  className="btn hero-cta-secondary"
+                  onClick={() => setCurrentPage("orders")}
+                >
+                  {trackCta}
+                </button>
+              </div>
+              {heroCfg.showStatsStrip !== false && (
+                <div className="hero-stats-strip">
+                  <span><i className="bi bi-shield-check me-1"></i>{isArabic ? heroCfg.stat1Ar : heroCfg.stat1En}</span>
+                  <span><i className="bi bi-lightning-charge me-1"></i>{isArabic ? heroCfg.stat2Ar : heroCfg.stat2En}</span>
+                  <span><i className="bi bi-cash-coin me-1"></i>{isArabic ? heroCfg.stat3Ar : heroCfg.stat3En}</span>
+                </div>
+              )}
+            </div>
+            {heroCfg.showFeaturedCard !== false && featuredProduct && (
+              <MotionDiv
+                className="hero-product"
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                onClick={() => routerNavigate(`/product/${featuredProduct.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    routerNavigate(`/product/${featuredProduct.id}`);
+                  }
+                }}
+                role="link"
+                tabIndex={0}
+              >
+                <span className="hero-product-label">{t("app.featured_product")}</span>
+                <img
+                  src={featuredProduct.image}
+                  alt={getLocalizedField(featuredProduct, "name") || featuredProduct.name}
+                />
+                <div className="hero-product-meta">
+                  <strong>{getLocalizedField(featuredProduct, "name") || featuredProduct.name}</strong>
+                  <span>
+                    {t("navbar.currency")}{" "}
+                    {formatPrice(getEffectivePrice(featuredProduct), i18n.language)}
+                  </span>
+                </div>
+              </MotionDiv>
+            )}
+          </MotionSection>
+        );
+
+      case "categories":
+        if (categories.length === 0) return null;
+        return (
+          <section key="categories" className="category-strip-section" aria-label={t("app.browse_categories")}>
+            <div className="category-pills-scroll">
+              <button
+                type="button"
+                className={`category-quick-pill ${filters.categories.length === 0 ? "active" : ""}`}
+                onClick={() => handleSelectSingleCategory("")}
+              >
+                <i className="bi bi-grid-fill me-1"></i>
+                {t("app.all_categories")}
+                <span className="pill-count">{products.length}</span>
+              </button>
+              {categories.map((cat) => {
+                const isSelected = filters.categories.includes(cat);
+                return (
+                  <button
+                    type="button"
+                    key={cat}
+                    className={`category-quick-pill ${isSelected ? "active" : ""}`}
+                    onClick={() => handleCategoryToggle(cat)}
+                  >
+                    {categoryLabels[cat] || cat}
+                    <span className="pill-count">{productCounts[cat] || 0}</span>
+                  </button>
+                );
+              })}
+              {dealProducts.length > 0 && (
+                <button
+                  type="button"
+                  className={`category-quick-pill promo-pill ${filters.onSaleOnly ? "active" : ""}`}
+                  onClick={() => handleToggleOnSale(!filters.onSaleOnly)}
+                >
+                  <i className="bi bi-fire me-1"></i>
+                  {t("filters.on_sale_only")}
+                </button>
+              )}
+            </div>
+          </section>
+        );
+
+      case "deals":
+        if (hasActiveFilters || dealProducts.length === 0) return null;
+        return (
+          <section key="deals" className="flash-deals-section mb-4">
+            <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+              <div>
+                <h4 className="fw-bold mb-0 d-flex align-items-center gap-2">
+                  <span className="flash-deals-icon"><i className="bi bi-lightning-fill"></i></span>
+                  {t("app.flash_deals")}
+                </h4>
+                <small className="text-muted-custom">{t("app.flash_deals_sub")}</small>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-primary-custom rounded-pill px-3"
+                onClick={() => updateFilters({ onSaleOnly: true, sort: "discount" })}
+              >
+                {t("app.view_details")}
+                <i className="bi bi-arrow-right ms-1"></i>
+              </button>
+            </div>
+            <div className="deals-strip-grid">
+              {dealProducts.map((deal) => (
+                <div
+                  key={deal.id}
+                  className="deal-mini-card"
+                  onClick={() => routerNavigate(`/product/${deal.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      routerNavigate(`/product/${deal.id}`);
+                    }
+                  }}
+                  role="link"
+                  tabIndex={0}
+                >
+                  <span className="product-sale-badge">-{getDiscountPercent(deal)}%</span>
+                  <img src={deal.image} alt={getLocalizedField(deal, "name")} className="deal-mini-img" />
+                  <div className="deal-mini-info">
+                    <h6 className="text-truncate fw-bold mb-1">
+                      {toTitleCase(getLocalizedField(deal, "name"))}
+                    </h6>
+                    <div className="d-flex align-items-baseline gap-2 flex-wrap">
+                      <span className="fw-bold text-success">
+                        {t("navbar.currency")} {formatPrice(getEffectivePrice(deal), i18n.language)}
+                      </span>
+                      <small className="text-muted-custom text-decoration-line-through">
+                        {formatPrice(getOriginalPrice(deal), i18n.language)}
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+
+      case "catalog":
+        return (
+          <div key="catalog" className="shop-layout" id="shop-products">
+            {!isMobile && (
+              <FilterSidebar
+                categories={categories}
+                categoryLabels={categoryLabels}
+                productCounts={productCounts}
+                selectedCategories={filters.categories}
+                minPrice={filters.minPrice}
+                maxPrice={filters.maxPrice}
+                priceRange={priceRange}
+                sort={filters.sort}
+                inStockOnly={filters.inStockOnly}
+                onSaleOnly={filters.onSaleOnly}
+                onCategoryToggle={handleCategoryToggle}
+                onPriceChange={handlePriceChange}
+                onSortChange={handleSortChange}
+                onToggleInStock={handleToggleInStock}
+                onToggleOnSale={handleToggleOnSale}
+                onClearFilters={clearFilters}
+              />
+            )}
+
+            <div className="shop-main">
+              <ActiveFilters
+                totalResults={filteredProducts.length}
+                currentPageResults={paginatedProducts.length}
+                selectedCategories={filters.categories}
+                categoryLabels={categoryLabels}
+                minPrice={filters.minPrice}
+                maxPrice={filters.maxPrice}
+                priceRange={priceRange}
+                search={filters.search}
+                sort={filters.sort}
+                inStockOnly={filters.inStockOnly}
+                onSaleOnly={filters.onSaleOnly}
+                onRemoveCategory={handleRemoveCategory}
+                onClearPrice={handleClearPrice}
+                onClearSearch={handleClearSearch}
+                onClearSort={handleClearSort}
+                onClearInStock={() => handleToggleInStock(false)}
+                onClearOnSale={() => handleToggleOnSale(false)}
+                onClearAll={clearFilters}
+              />
+
+              {loading ? (
+                <div className="row">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="col-6 col-sm-6 col-md-4 col-lg-4 mb-3 mb-md-4">
+                      <div className="skeleton skeleton-card"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {paginatedProducts.length === 0 ? (
+                    <div className="text-center py-5">
+                      <i className="bi bi-search text-muted-custom" style={{ fontSize: "3rem" }}></i>
+                      <h4 className="mt-3 text-muted-custom">{t("app.no_products")}</h4>
+                      <p className="text-muted-custom opacity-75">{t("app.try_adjusting")}</p>
+                      {hasActiveFilters && (
+                        <button type="button" className="btn btn-outline-custom mt-2" onClick={clearFilters}>
+                          {t("app.clear_filters")}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="row product-grid-animated">
+                      {paginatedProducts.map((p) => (
+                        <ProductCard
+                          key={p.id}
+                          product={p}
+                          addToCart={addToCart}
+                          addToWishlist={addToWishlist}
+                          isInWishlist={wishlist.some((w) => w.id === p.id)}
+                          onQuickView={setQuickViewProduct}
+                          onToggleCompare={toggleCompare}
+                          isInCompare={isInCompare(p.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {filteredProducts.length > 0 && (
+                    <Pagination
+                      currentPage={safePage}
+                      totalPages={totalPages}
+                      perPage={filters.perPage}
+                      onPageChange={handlePageChange}
+                      onPerPageChange={handlePerPageChange}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        );
+
+      case "recent":
+        if (hasActiveFilters || recentlyViewedHome.length === 0) return null;
+        return (
+          <section key="recent" className="mt-5 mb-2">
+            <h4 className="fw-bold mb-3">{t("app.recently_viewed")}</h4>
+            <div className="row product-grid-animated">
+              {recentlyViewedHome.map((item) => (
+                <ProductCard
+                  key={`recent-${item.id}`}
+                  product={item}
+                  addToCart={addToCart}
+                  addToWishlist={addToWishlist}
+                  isInWishlist={wishlist.some((w) => w.id === item.id)}
+                  onQuickView={setQuickViewProduct}
+                  onToggleCompare={toggleCompare}
+                  isInCompare={isInCompare(item.id)}
+                />
+              ))}
+            </div>
+          </section>
+        );
+
+      case "trust":
+        return null; // Rendered dynamically via homeTrustPosition below
+
+      default:
+        return null;
+    }
+  };
+
   // ================= UI =================
   return (
     <div className="app-shell">
-      {/* SCROLL PROGRESS BAR */}
       <div className="scroll-progress-track" aria-hidden="true">
         <div className="scroll-progress-bar" style={{ width: `${scrollProgress}%` }}></div>
       </div>
 
-      {/* PROMO ANNOUNCEMENT BAR */}
-      <AnnouncementBar onApplyCoupon={(code) => setCouponCode(code)} />
+      <AnnouncementBar
+        config={storeSettings.announcement}
+        onApplyCoupon={(code) => setCouponCode(code)}
+      />
 
-      {/* NAVBAR */}
       <Navbar
         cartCount={cart.reduce((sum, item) => sum + item.qty, 0)}
         wishlistCount={wishlist.length}
@@ -584,6 +872,8 @@ function App() {
         notificationCount={activeNotifications.filter((notification) => !notification.read).length}
         onMarkNotificationRead={markNotificationAsRead}
         onMarkAllNotificationsRead={() => markAllNotificationsAsRead(activeNotifications)}
+        brand={storeSettings.brand}
+        onShowInstallGuide={() => setShowInstallGuide(true)}
         search={filters.search}
         onSearchChange={handleSearchChange}
         cartPulse={cartPulse}
@@ -686,6 +976,7 @@ function App() {
                   couponCode={couponCode}
                   onApplyCoupon={(code) => setCouponCode(code)}
                   onClearCoupon={() => setCouponCode("")}
+                  storeSettings={storeSettings}
                   navigate={setCurrentPage}
                   user={user}
                   dbUser={dbUser}
@@ -700,316 +991,40 @@ function App() {
                   navigate={setCurrentPage}
                 />
               ) : (
-                <div className="container mt-4 home-page">
-                  {/* HERO SECTION */}
-                  {!hasActiveFilters && (
-                    <MotionSection
-                      className="hero-section premium-hero"
-                      initial={{ opacity: 0, y: 18 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                    >
-                      <div className="hero-glow hero-glow-one" aria-hidden="true"></div>
-                      <div className="hero-glow hero-glow-two" aria-hidden="true"></div>
-                      <div className="hero-floating-shape shape-one" aria-hidden="true"></div>
-                      <div className="hero-floating-shape shape-two" aria-hidden="true"></div>
-                      <div className="hero-copy">
-                        <span className="hero-kicker">{t("app.hero_kicker")}</span>
-                        <h1 className="hero-title fw-bold">{t("app.hero_title")}</h1>
-                        <p className="hero-slogan">{t("app.hero_slogan")}</p>
-                        <p className="hero-desc">{t("app.hero_desc")}</p>
-                        <div className="hero-actions">
-                          <button
-                            type="button"
-                            className="btn hero-cta-primary"
-                            onClick={() =>
-                              document.getElementById("shop-products")?.scrollIntoView({
-                                behavior: "smooth",
-                                block: "start",
-                              })
-                            }
-                          >
-                            {t("app.shop_now")}
-                            <i className="bi bi-arrow-down ms-1"></i>
-                          </button>
-                          <button
-                            type="button"
-                            className="btn hero-cta-secondary"
-                            onClick={() => setCurrentPage("orders")}
-                          >
-                            {t("app.track_order")}
-                          </button>
-                        </div>
-                        <div className="hero-stats-strip">
-                          <span><i className="bi bi-shield-check me-1"></i>{t("app.hero_stat_authentic")}</span>
-                          <span><i className="bi bi-lightning-charge me-1"></i>{t("app.hero_stat_delivery")}</span>
-                          <span><i className="bi bi-cash-coin me-1"></i>{t("app.hero_stat_support")}</span>
-                        </div>
+                <>
+                  {storeSettings.sections.map((section) =>
+                    section.id === "trust" ? (
+                      isTrustVisible ? <TrustBadges key="trust-inline" config={storeSettings.trustBadges} /> : null
+                    ) : (
+                      <div key={`wrap-${section.id}`} className="container mt-3 mt-md-4 home-page-block">
+                        {renderHomeSection(section)}
                       </div>
-                      {featuredProduct && (
-                        <MotionDiv
-                          className="hero-product"
-                          animate={{ y: [0, -10, 0] }}
-                          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                          onClick={() => routerNavigate(`/product/${featuredProduct.id}`)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              routerNavigate(`/product/${featuredProduct.id}`);
-                            }
-                          }}
-                          role="link"
-                          tabIndex={0}
-                        >
-                          <span className="hero-product-label">{t("app.featured_product")}</span>
-                          <img
-                            src={featuredProduct.image}
-                            alt={getLocalizedField(featuredProduct, "name") || featuredProduct.name}
-                          />
-                          <div className="hero-product-meta">
-                            <strong>{getLocalizedField(featuredProduct, "name") || featuredProduct.name}</strong>
-                            <span>
-                              {t("navbar.currency")}{" "}
-                              {formatPrice(getEffectivePrice(featuredProduct), i18n.language)}
-                            </span>
-                          </div>
-                        </MotionDiv>
-                      )}
-                    </MotionSection>
+                    )
                   )}
-
-                  {/* QUICK CATEGORY PILLS STRIP */}
-                  {categories.length > 0 && (
-                    <section className="category-strip-section" aria-label={t("app.browse_categories")}>
-                      <div className="category-pills-scroll">
-                        <button
-                          type="button"
-                          className={`category-quick-pill ${filters.categories.length === 0 ? "active" : ""}`}
-                          onClick={() => handleSelectSingleCategory("")}
-                        >
-                          <i className="bi bi-grid-fill me-1"></i>
-                          {t("app.all_categories")}
-                          <span className="pill-count">{products.length}</span>
-                        </button>
-                        {categories.map((cat) => {
-                          const isSelected = filters.categories.includes(cat);
-                          return (
-                            <button
-                              type="button"
-                              key={cat}
-                              className={`category-quick-pill ${isSelected ? "active" : ""}`}
-                              onClick={() => handleCategoryToggle(cat)}
-                            >
-                              {categoryLabels[cat] || cat}
-                              <span className="pill-count">{productCounts[cat] || 0}</span>
-                            </button>
-                          );
-                        })}
-                        {dealProducts.length > 0 && (
-                          <button
-                            type="button"
-                            className={`category-quick-pill promo-pill ${filters.onSaleOnly ? "active" : ""}`}
-                            onClick={() => handleToggleOnSale(!filters.onSaleOnly)}
-                          >
-                            <i className="bi bi-fire me-1"></i>
-                            {t("filters.on_sale_only")}
-                          </button>
-                        )}
-                      </div>
-                    </section>
-                  )}
-
-                  {/* FLASH DEALS SPOTLIGHT */}
-                  {!hasActiveFilters && dealProducts.length > 0 && (
-                    <section className="flash-deals-section mb-4">
-                      <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-                        <div>
-                          <h4 className="fw-bold mb-0 d-flex align-items-center gap-2">
-                            <span className="flash-deals-icon"><i className="bi bi-lightning-fill"></i></span>
-                            {t("app.flash_deals")}
-                          </h4>
-                          <small className="text-muted-custom">{t("app.flash_deals_sub")}</small>
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-primary-custom rounded-pill px-3"
-                          onClick={() => updateFilters({ onSaleOnly: true, sort: "discount" })}
-                        >
-                          {t("app.view_details")}
-                          <i className="bi bi-arrow-right ms-1"></i>
-                        </button>
-                      </div>
-                      <div className="deals-strip-grid">
-                        {dealProducts.map((deal) => (
-                          <div
-                            key={deal.id}
-                            className="deal-mini-card"
-                            onClick={() => routerNavigate(`/product/${deal.id}`)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                routerNavigate(`/product/${deal.id}`);
-                              }
-                            }}
-                            role="link"
-                            tabIndex={0}
-                          >
-                            <span className="product-sale-badge">-{getDiscountPercent(deal)}%</span>
-                            <img src={deal.image} alt={getLocalizedField(deal, "name")} className="deal-mini-img" />
-                            <div className="deal-mini-info">
-                              <h6 className="text-truncate fw-bold mb-1">
-                                {toTitleCase(getLocalizedField(deal, "name"))}
-                              </h6>
-                              <div className="d-flex align-items-baseline gap-2">
-                                <span className="fw-bold text-success">
-                                  {t("navbar.currency")} {formatPrice(getEffectivePrice(deal), i18n.language)}
-                                </span>
-                                <small className="text-muted-custom text-decoration-line-through">
-                                  {formatPrice(getOriginalPrice(deal), i18n.language)}
-                                </small>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-
-                  {/* SHOP LAYOUT */}
-                  <div className="shop-layout" id="shop-products">
-                    {!isMobile && (
-                      <FilterSidebar
-                        categories={categories}
-                        categoryLabels={categoryLabels}
-                        productCounts={productCounts}
-                        selectedCategories={filters.categories}
-                        minPrice={filters.minPrice}
-                        maxPrice={filters.maxPrice}
-                        priceRange={priceRange}
-                        sort={filters.sort}
-                        inStockOnly={filters.inStockOnly}
-                        onSaleOnly={filters.onSaleOnly}
-                        onCategoryToggle={handleCategoryToggle}
-                        onPriceChange={handlePriceChange}
-                        onSortChange={handleSortChange}
-                        onToggleInStock={handleToggleInStock}
-                        onToggleOnSale={handleToggleOnSale}
-                        onClearFilters={clearFilters}
-                      />
-                    )}
-
-                    <div className="shop-main">
-                      <ActiveFilters
-                        totalResults={filteredProducts.length}
-                        currentPageResults={paginatedProducts.length}
-                        selectedCategories={filters.categories}
-                        categoryLabels={categoryLabels}
-                        minPrice={filters.minPrice}
-                        maxPrice={filters.maxPrice}
-                        priceRange={priceRange}
-                        search={filters.search}
-                        sort={filters.sort}
-                        inStockOnly={filters.inStockOnly}
-                        onSaleOnly={filters.onSaleOnly}
-                        onRemoveCategory={handleRemoveCategory}
-                        onClearPrice={handleClearPrice}
-                        onClearSearch={handleClearSearch}
-                        onClearSort={handleClearSort}
-                        onClearInStock={() => handleToggleInStock(false)}
-                        onClearOnSale={() => handleToggleOnSale(false)}
-                        onClearAll={clearFilters}
-                      />
-
-                      {loading ? (
-                        <div className="row">
-                          {[...Array(8)].map((_, i) => (
-                            <div key={i} className="col-12 col-sm-6 col-md-4 col-lg-4 mb-4">
-                              <div className="skeleton skeleton-card"></div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <>
-                          {paginatedProducts.length === 0 ? (
-                            <div className="text-center py-5">
-                              <i className="bi bi-search text-muted-custom" style={{ fontSize: "3rem" }}></i>
-                              <h4 className="mt-3 text-muted-custom">{t("app.no_products")}</h4>
-                              <p className="text-muted-custom opacity-75">{t("app.try_adjusting")}</p>
-                              {hasActiveFilters && (
-                                <button type="button" className="btn btn-outline-custom mt-2" onClick={clearFilters}>
-                                  {t("app.clear_filters")}
-                                </button>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="row product-grid-animated">
-                              {paginatedProducts.map((p) => (
-                                <ProductCard
-                                  key={p.id}
-                                  product={p}
-                                  addToCart={addToCart}
-                                  addToWishlist={addToWishlist}
-                                  isInWishlist={wishlist.some((w) => w.id === p.id)}
-                                  onQuickView={setQuickViewProduct}
-                                  onToggleCompare={toggleCompare}
-                                  isInCompare={isInCompare(p.id)}
-                                />
-                              ))}
-                            </div>
-                          )}
-
-                          {filteredProducts.length > 0 && (
-                            <Pagination
-                              currentPage={safePage}
-                              totalPages={totalPages}
-                              perPage={filters.perPage}
-                              onPageChange={handlePageChange}
-                              onPerPageChange={handlePerPageChange}
-                            />
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* RECENTLY VIEWED ON HOME PAGE */}
-                  {!hasActiveFilters && recentlyViewedHome.length > 0 && (
-                    <section className="mt-5 mb-2">
-                      <h4 className="fw-bold mb-3">{t("app.recently_viewed")}</h4>
-                      <div className="row product-grid-animated">
-                        {recentlyViewedHome.map((item) => (
-                          <ProductCard
-                            key={`recent-${item.id}`}
-                            product={item}
-                            addToCart={addToCart}
-                            addToWishlist={addToWishlist}
-                            isInWishlist={wishlist.some((w) => w.id === item.id)}
-                            onQuickView={setQuickViewProduct}
-                            onToggleCompare={toggleCompare}
-                            isInCompare={isInCompare(item.id)}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  )}
-                </div>
+                </>
               )
             }
           />
         </Routes>
       </main>
 
-      {/* TRUST BADGES & FOOTER */}
-      <TrustBadges />
-      <Footer
-        categories={categories}
-        categoryLabels={categoryLabels}
-        navigate={setCurrentPage}
-        onSelectCategory={handleSelectSingleCategory}
-        onFilterDeals={() => updateFilters({ onSaleOnly: true, sort: "discount" })}
-      />
+      {currentPage !== "home" && currentPage !== "admin" && isTrustVisible && (
+        <TrustBadges config={storeSettings.trustBadges} />
+      )}
 
-      {/* COMPARE FLOATING TRAY */}
+      {currentPage !== "admin" && (
+        <Footer
+          config={storeSettings.footer}
+          brand={storeSettings.brand}
+          categories={categories}
+          categoryLabels={categoryLabels}
+          navigate={setCurrentPage}
+          onSelectCategory={handleSelectSingleCategory}
+          onFilterDeals={() => updateFilters({ onSaleOnly: true, sort: "discount" })}
+          onShowInstallGuide={() => setShowInstallGuide(true)}
+        />
+      )}
+
       {compareItems.length > 0 && (
         <div className="compare-floating-bar" role="region" aria-label={t("compare.title")}>
           <div className="container compare-floating-inner">
@@ -1021,11 +1036,7 @@ function App() {
                 {compareItems.map((item) => (
                   <div key={item.id} className="compare-tray-thumb">
                     <img src={item.image} alt="" />
-                    <button
-                      type="button"
-                      onClick={() => toggleCompare(item)}
-                      aria-label={t("cart.remove")}
-                    >
+                    <button type="button" onClick={() => toggleCompare(item)} aria-label={t("cart.remove")}>
                       <i className="bi bi-x"></i>
                     </button>
                   </div>
@@ -1033,11 +1044,7 @@ function App() {
               </div>
             </div>
             <div className="d-flex gap-2 flex-shrink-0">
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-light rounded-pill px-3"
-                onClick={() => setCompareItems([])}
-              >
+              <button type="button" className="btn btn-sm btn-outline-light rounded-pill px-3" onClick={() => setCompareItems([])}>
                 {t("compare.clear")}
               </button>
               <button
@@ -1053,7 +1060,6 @@ function App() {
         </div>
       )}
 
-      {/* MODALS & FLOATING CONTROLS */}
       <QuickViewModal
         product={quickViewProduct}
         onClose={() => setQuickViewProduct(null)}
@@ -1071,6 +1077,37 @@ function App() {
         onRemove={(id) => setCompareItems((prev) => prev.filter((item) => item.id !== id))}
         addToCart={addToCart}
       />
+
+      {showInstallGuide && createPortal(
+        <div className="checkout-modal-overlay" onClick={() => setShowInstallGuide(false)}>
+          <div className="checkout-modal p-4" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="fw-bold mb-0">
+                <i className="bi bi-phone text-primary-custom me-2"></i>
+                {t("footer.install_ios_title")}
+              </h5>
+              <button type="button" className="btn-close" onClick={() => setShowInstallGuide(false)}></button>
+            </div>
+            <p className="small text-muted-custom mb-3">{t("footer.install_ios_desc")}</p>
+            <div className="p-3 rounded-3 border bg-light mb-3 small">
+              <div className="fw-bold mb-1"><i className="bi bi-apple me-1"></i> iPhone (Safari):</div>
+              <ol className="mb-0 ps-3">
+                <li>Tap the <strong>Share</strong> icon (<i className="bi bi-box-arrow-up"></i>) at the bottom bar.</li>
+                <li>Tap <strong>Add to Home Screen</strong>.</li>
+                <li>Tap <strong>Add</strong> in the top-right corner.</li>
+              </ol>
+            </div>
+            <div className="p-3 rounded-3 border bg-light small">
+              <div className="fw-bold mb-1"><i className="bi bi-android2 me-1"></i> Android (Chrome):</div>
+              <ol className="mb-0 ps-3">
+                <li>Tap <strong>⋮ Menu</strong> in Chrome.</li>
+                <li>Tap <strong>Install app</strong> / <strong>Add to Home screen</strong>.</li>
+              </ol>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       <BackToTop hasCompareBar={compareItems.length > 0} />
     </div>

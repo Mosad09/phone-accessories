@@ -14,6 +14,62 @@ import {
   createTrackingNumber,
   normalizeStatus,
 } from "./orderLifecycle";
+import { DEFAULT_STORE_SETTINGS, mergeStoreSettings } from "./storeSettings";
+
+// ===================== STOREFRONT SETTINGS CMS =====================
+
+const STORE_SETTINGS_CACHE_KEY = "veltrix_store_settings_cache";
+const storeSettingsDocRef = doc(db, "settings", "storefront");
+
+export const getCachedStoreSettings = () => {
+  try {
+    const raw = localStorage.getItem(STORE_SETTINGS_CACHE_KEY);
+    return raw ? mergeStoreSettings(JSON.parse(raw)) : DEFAULT_STORE_SETTINGS;
+  } catch {
+    return DEFAULT_STORE_SETTINGS;
+  }
+};
+
+export const subscribeToStoreSettings = (callback) => {
+  return onSnapshot(
+    storeSettingsDocRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        const merged = mergeStoreSettings(snapshot.data());
+        try {
+          localStorage.setItem(STORE_SETTINGS_CACHE_KEY, JSON.stringify(merged));
+        } catch {
+          // Ignore storage quota errors
+        }
+        callback(merged);
+      } else {
+        callback(getCachedStoreSettings());
+      }
+    },
+    (error) => {
+      console.warn("Store settings subscription fallback to cached/default:", error);
+      callback(getCachedStoreSettings());
+    }
+  );
+};
+
+export const saveStoreSettings = async (settings) => {
+  const normalized = mergeStoreSettings(settings);
+  try {
+    localStorage.setItem(STORE_SETTINGS_CACHE_KEY, JSON.stringify(normalized));
+  } catch {
+    // Ignore storage quota errors
+  }
+  await setDoc(
+    storeSettingsDocRef,
+    {
+      ...normalized,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+  return normalized;
+};
 
 // ===================== PRODUCTS =====================
 
@@ -146,7 +202,10 @@ export const saveOrderToFirestore = async (orderData) => {
   const { id: legacyStoredId, ...rest } = orderData;
   const createdAt = new Date();
   const status = normalizeStatus(rest.status || "pending");
-  const trackingNumber = rest.trackingNumber || createTrackingNumber(createdAt);
+  const cachedSettings = getCachedStoreSettings();
+  const trackingNumber =
+    rest.trackingNumber ||
+    createTrackingNumber(createdAt, cachedSettings.brand?.trackingPrefix || "VTX");
   const payload = {
     ...rest,
     status,

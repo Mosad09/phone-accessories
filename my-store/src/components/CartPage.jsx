@@ -7,6 +7,7 @@ import { getLocalizedField } from "../utils/localization";
 import {
   calculateCartTotals,
   formatPrice,
+  getActivePromoCodes,
   getCartItemKey,
   getEffectivePrice,
   getOriginalPrice,
@@ -22,6 +23,7 @@ function CartPage({
   couponCode,
   onApplyCoupon,
   onClearCoupon,
+  storeSettings,
   navigate,
   user,
   dbUser,
@@ -33,14 +35,19 @@ function CartPage({
   const { t, i18n } = useTranslation();
   const routerNavigate = useNavigate();
 
+  const isArabic = i18n.language === "ar";
+  const offerConfig = storeSettings?.shippingAndOffers;
+  const activePromoCodes = getActivePromoCodes(offerConfig);
+  const hasPromoSystem = activePromoCodes.length > 0;
+
   const getItemName = (item) => toTitleCase(getLocalizedField(item, "name") || item.name || "");
-  const totals = calculateCartTotals(cart, couponCode);
+  const totals = calculateCartTotals(cart, couponCode, offerConfig);
   const totalCount = cart.reduce((acc, curr) => acc + Math.max(1, Number(curr.qty) || 1), 0);
 
   const handlePromoSubmit = (e) => {
     e.preventDefault();
     const code = promoInput.trim().toUpperCase();
-    const check = validatePromoCode(code, totals.subtotal);
+    const check = validatePromoCode(code, totals.subtotal, offerConfig);
     if (!check.valid) {
       if (check.reason === "min_not_met") {
         setPromoFeedback({
@@ -58,6 +65,12 @@ function CartPage({
       type: "success",
       message: t("cart.promo_applied", { code: check.promo.code }),
     });
+  };
+
+  const getPromoLabel = (promo) => {
+    if (!promo) return "";
+    if (isArabic) return promo.labelAr || promo.labelEn || promo.code;
+    return promo.labelEn || promo.labelAr || promo.code;
   };
 
   return (
@@ -103,27 +116,29 @@ function CartPage({
       ) : (
         <div className="row g-4">
           <div className="col-lg-8">
-            {/* Free Shipping Progress Bar */}
-            <div className="cart-shipping-banner mb-3">
-              <div className="d-flex align-items-center justify-content-between gap-2 mb-2">
-                <span className="fw-semibold small d-flex align-items-center gap-2">
-                  <i className={`bi ${totals.isFreeShipping ? "bi-check-circle-fill text-success" : "bi-truck text-primary-custom"}`}></i>
-                  {totals.isFreeShipping
-                    ? t("cart.free_shipping_unlocked")
-                    : t("cart.free_shipping_remaining", {
-                        amount: formatPrice(totals.amountToFreeShipping, i18n.language),
-                        currency: t("navbar.currency"),
-                      })}
-                </span>
-                <span className="small fw-bold text-primary-custom">{totals.freeShippingProgress}%</span>
+            {/* Free Shipping Progress Bar — shown only when enabled by Admin */}
+            {totals.freeShippingEnabled && (
+              <div className="cart-shipping-banner mb-3">
+                <div className="d-flex align-items-center justify-content-between gap-2 mb-2">
+                  <span className="fw-semibold small d-flex align-items-center gap-2">
+                    <i className={`bi ${totals.isFreeShipping ? "bi-check-circle-fill text-success" : "bi-truck text-primary-custom"}`}></i>
+                    {totals.isFreeShipping
+                      ? t("cart.free_shipping_unlocked")
+                      : t("cart.free_shipping_remaining", {
+                          amount: formatPrice(totals.amountToFreeShipping, i18n.language),
+                          currency: t("navbar.currency"),
+                        })}
+                  </span>
+                  <span className="small fw-bold text-primary-custom">{totals.freeShippingProgress}%</span>
+                </div>
+                <div className="progress cart-shipping-progress" role="progressbar" aria-valuenow={totals.freeShippingProgress} aria-valuemin="0" aria-valuemax="100">
+                  <div
+                    className={`progress-bar ${totals.isFreeShipping ? "bg-success" : "bg-primary-custom"}`}
+                    style={{ width: `${totals.freeShippingProgress}%` }}
+                  ></div>
+                </div>
               </div>
-              <div className="progress cart-shipping-progress" role="progressbar" aria-valuenow={totals.freeShippingProgress} aria-valuemin="0" aria-valuemax="100">
-                <div
-                  className={`progress-bar ${totals.isFreeShipping ? "bg-success" : "bg-primary-custom"}`}
-                  style={{ width: `${totals.freeShippingProgress}%` }}
-                ></div>
-              </div>
-            </div>
+            )}
 
             <div className="card shadow-sm border-0">
               <div className="card-body p-0">
@@ -142,7 +157,7 @@ function CartPage({
                             <img
                               src={item.image}
                               alt={getItemName(item)}
-                              className="rounded cart-product-image cursor-pointer"
+                              className="rounded cart-product-image"
                               style={{ width: "80px", height: "80px", objectFit: "cover", cursor: "pointer" }}
                               onClick={() => routerNavigate(`/product/${item.id}`)}
                             />
@@ -160,14 +175,10 @@ function CartPage({
                             {(item.selectedColor || item.selectedSize) && (
                               <div className="d-flex flex-wrap gap-1 mb-1">
                                 {item.selectedColor && (
-                                  <span className="badge bg-light text-dark border small">
-                                    {item.selectedColor}
-                                  </span>
+                                  <span className="badge bg-light text-dark border small">{item.selectedColor}</span>
                                 )}
                                 {item.selectedSize && (
-                                  <span className="badge bg-light text-dark border small">
-                                    {item.selectedSize}
-                                  </span>
+                                  <span className="badge bg-light text-dark border small">{item.selectedSize}</span>
                                 )}
                               </div>
                             )}
@@ -240,55 +251,82 @@ function CartPage({
               <div className="card-body p-4">
                 <h5 className="fw-bold mb-4">{t("cart.order_summary")}</h5>
 
-                {/* Promo Code Input */}
-                <form className="mb-3" onSubmit={handlePromoSubmit}>
-                  <label className="form-label small fw-semibold mb-1" htmlFor="cart-promo-input">
-                    {t("cart.promo_label")}
-                  </label>
-                  <div className="input-group">
-                    <input
-                      id="cart-promo-input"
-                      type="text"
-                      className="form-control text-uppercase"
-                      placeholder={t("cart.promo_placeholder")}
-                      value={promoInput}
-                      onChange={(e) => {
-                        setPromoInput(e.target.value);
-                        if (promoFeedback.message) setPromoFeedback({ type: "", message: "" });
-                      }}
-                    />
-                    <button type="submit" className="btn btn-outline-primary-custom fw-semibold">
-                      {t("cart.apply")}
-                    </button>
-                  </div>
-                  <small className="text-muted-custom d-block mt-1" style={{ fontSize: "0.74rem" }}>
-                    {t("cart.promo_hint")}
-                  </small>
-                  {promoFeedback.message && (
-                    <div className={`small mt-1 fw-medium ${promoFeedback.type === "error" ? "text-danger" : "text-success"}`}>
-                      {promoFeedback.message}
-                    </div>
-                  )}
-                  {totals.coupon && (
-                    <div className="promo-applied-pill mt-2">
-                      <span>
-                        <i className="bi bi-tag-fill me-1"></i>
-                        <strong>{totals.coupon.code}</strong> — {t(totals.coupon.labelKey)}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-link btn-sm p-0 text-danger text-decoration-none"
-                        onClick={() => {
-                          onClearCoupon?.();
-                          setPromoInput("");
-                          setPromoFeedback({ type: "", message: "" });
+                {/* Promo Code Input — shown only when active promo codes exist */}
+                {hasPromoSystem && (
+                  <form className="mb-3" onSubmit={handlePromoSubmit}>
+                    <label className="form-label small fw-semibold mb-1" htmlFor="cart-promo-input">
+                      {t("cart.promo_label")}
+                    </label>
+                    <div className="input-group">
+                      <input
+                        id="cart-promo-input"
+                        type="text"
+                        className="form-control text-uppercase"
+                        placeholder={t("cart.promo_input_placeholder")}
+                        value={promoInput}
+                        onChange={(e) => {
+                          setPromoInput(e.target.value);
+                          if (promoFeedback.message) setPromoFeedback({ type: "", message: "" });
                         }}
-                      >
-                        {t("cart.remove_promo")}
+                      />
+                      <button type="submit" className="btn btn-outline-primary-custom fw-semibold">
+                        {t("cart.apply")}
                       </button>
                     </div>
-                  )}
-                </form>
+                    <div className="d-flex flex-wrap gap-1 mt-2">
+                      {activePromoCodes.slice(0, 3).map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className="badge bg-light text-dark border text-decoration-none"
+                          style={{ cursor: "pointer" }}
+                          onClick={() => {
+                            setPromoInput(p.code);
+                            const check = validatePromoCode(p.code, totals.subtotal, offerConfig);
+                            if (check.valid) {
+                              onApplyCoupon?.(p.code);
+                              setPromoFeedback({
+                                type: "success",
+                                message: t("cart.promo_applied", { code: p.code }),
+                              });
+                            } else if (check.reason === "min_not_met") {
+                              setPromoFeedback({
+                                type: "error",
+                                message: t("cart.promo_min_not_met", { min: check.minSubtotal }),
+                              });
+                            }
+                          }}
+                        >
+                          {p.code}
+                        </button>
+                      ))}
+                    </div>
+                    {promoFeedback.message && (
+                      <div className={`small mt-1 fw-medium ${promoFeedback.type === "error" ? "text-danger" : "text-success"}`}>
+                        {promoFeedback.message}
+                      </div>
+                    )}
+                    {totals.coupon && (
+                      <div className="promo-applied-pill mt-2">
+                        <span>
+                          <i className="bi bi-tag-fill me-1"></i>
+                          <strong>{totals.coupon.code}</strong> — {getPromoLabel(totals.coupon)}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-link btn-sm p-0 text-danger text-decoration-none"
+                          onClick={() => {
+                            onClearCoupon?.();
+                            setPromoInput("");
+                            setPromoFeedback({ type: "", message: "" });
+                          }}
+                        >
+                          {t("cart.remove_promo")}
+                        </button>
+                      </div>
+                    )}
+                  </form>
+                )}
 
                 <div className="d-flex justify-content-between mb-2">
                   <span className="text-muted-custom">
@@ -357,6 +395,7 @@ function CartPage({
         onClose={() => setShowCheckout(false)}
         cart={cart}
         couponCode={couponCode}
+        storeSettings={storeSettings}
         user={user}
         dbUser={dbUser}
         onOrderConfirmed={(orderData) => {
