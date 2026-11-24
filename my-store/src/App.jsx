@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -48,19 +48,9 @@ import {
   getOriginalPrice,
   hasDiscount,
 } from "./utils/pricing";
-import { attemptChunkRecovery, isChunkLoadError } from "./utils/chunkRecovery";
+import AdminPanel from "./components/admin/AdminPanel";
 import { useTranslation } from "react-i18next";
 
-const AdminPanel = lazy(async () => {
-  try {
-    return await import("./components/admin/AdminPanel");
-  } catch (error) {
-    if (isChunkLoadError(error) && (await attemptChunkRecovery())) {
-      return new Promise(() => {});
-    }
-    throw error;
-  }
-});
 const MotionSection = motion.section;
 const MotionDiv = motion.div;
 
@@ -950,15 +940,7 @@ function App() {
                 </div>
               ) : currentPage === "admin" ? (
                 isAdmin ? (
-                  <Suspense
-                    fallback={
-                      <div className="container py-5 text-center">
-                        <div className="spinner-border text-primary-custom" role="status"></div>
-                      </div>
-                    }
-                  >
-                    <AdminPanel navigate={setCurrentPage} />
-                  </Suspense>
+                  <AdminPanel navigate={setCurrentPage} />
                 ) : (
                   <div className="container py-5 text-center">
                     <i className="bi bi-shield-lock fs-1 text-muted-custom"></i>

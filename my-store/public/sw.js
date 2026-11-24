@@ -1,4 +1,4 @@
-const CACHE_NAME = "veltrix-pwa-v2";
+const CACHE_NAME = "veltrix-pwa-v3";
 const STATIC_ASSETS = [
   "/manifest.webmanifest",
   "/manifest-admin.webmanifest",
@@ -32,10 +32,10 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Navigation requests: network first so fresh builds & separate /admin/ HTML always win
+  // Navigation requests: bypass HTTP disk cache so fresh builds & separate /admin/ HTML always win
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(() =>
+      fetch(request, { cache: "no-store" }).catch(() =>
         url.pathname.startsWith("/admin")
           ? caches.match("/admin/index.html")
           : caches.match("/index.html")
