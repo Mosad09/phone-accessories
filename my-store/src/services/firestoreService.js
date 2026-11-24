@@ -1,10 +1,19 @@
 import { db } from "../utils/firebase";
 import {
   collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc,
-  onSnapshot, query, orderBy, where, setDoc, serverTimestamp
+  onSnapshot, query, orderBy, where, setDoc, serverTimestamp, writeBatch
 } from "@firebase/firestore";
 import { uploadImageToCloudinary, deleteCloudinaryImages } from "./cloudinaryService";
 import { buildProductsById, calculateOrderProfit } from "../utils/profitAnalytics";
+import {
+  advanceTimeline,
+  appendStatusHistory,
+  buildInitialTimeline,
+  buildTransactionalEmail,
+  createOrderNotification,
+  createTrackingNumber,
+  normalizeStatus,
+} from "./orderLifecycle";
 
 // ===================== PRODUCTS =====================
 
@@ -83,9 +92,34 @@ export const deleteProductImage = async (publicId) => {
   await deleteCloudinaryImages(publicId ? [publicId] : []);
 };
 
-// ===================== ORDERS =====================
+// ===================== ORDERS & NOTIFICATIONS =====================
 
 const ordersCol = collection(db, "orders");
+const notificationsCol = collection(db, "notifications");
+const mailCol = collection(db, "mail");
+const reviewsCol = collection(db, "reviews");
+const subscribersCol = collection(db, "subscribers");
+
+const createCustomerNotification = async (order, status) => {
+  if (!order.email) return null;
+  return addDoc(notificationsCol, {
+    ...createOrderNotification(order, status, order.language || "en"),
+    email: order.email,
+    userId: order.userId || null,
+    createdAt: serverTimestamp(),
+  });
+};
+
+const queueOrderEmail = async (order, status) => {
+  if (!order.email) return null;
+  return addDoc(mailCol, {
+    ...buildTransactionalEmail(order, status, order.language || "en"),
+    orderId: order.id || "",
+    trackingNumber: order.trackingNumber || "",
+    status: normalizeStatus(status),
+    createdAt: serverTimestamp(),
+  });
+};
 
 /** Real Firestore doc id must stay in `id` for updateDoc/delete. Stored `data.id` (e.g. ORD-…) is surfaced as displayOrderId only. */
 export const normalizeOrderFromSnapshot = (d) => {
@@ -110,18 +144,31 @@ export const normalizeOrderFromSnapshot = (d) => {
 
 export const saveOrderToFirestore = async (orderData) => {
   const { id: legacyStoredId, ...rest } = orderData;
+  const createdAt = new Date();
+  const status = normalizeStatus(rest.status || "pending");
+  const trackingNumber = rest.trackingNumber || createTrackingNumber(createdAt);
   const payload = {
     ...rest,
+    status,
+    trackingNumber,
     ...(legacyStoredId &&
     typeof legacyStoredId === "string" &&
     legacyStoredId.startsWith("ORD") &&
     !rest.orderId
       ? { orderId: legacyStoredId }
       : {}),
+    paymentMethod: rest.paymentMethod || "Cash on Delivery",
+    timeline: rest.timeline || buildInitialTimeline(status, createdAt),
+    statusHistory: rest.statusHistory || appendStatusHistory([], status, "customer", createdAt),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
   const docRef = await addDoc(ordersCol, payload);
+  const queuedOrder = { ...payload, id: docRef.id, createdAt: createdAt.toISOString() };
+  await Promise.allSettled([
+    queueOrderEmail(queuedOrder, status),
+    createCustomerNotification(queuedOrder, status),
+  ]);
   return docRef.id;
 };
 
@@ -138,7 +185,48 @@ export const subscribeToUserOrders = (email, callback) => {
   return onSnapshot(q, (snapshot) => {
     const orders = snapshot.docs.map((d) => normalizeOrderFromSnapshot(d));
     callback(orders);
+  }, (error) => {
+    console.error("User orders subscription error:", error);
+    callback([]);
   });
+};
+
+export const subscribeToUserNotifications = (email, callback) => {
+  if (!email) return () => {};
+  const q = query(notificationsCol, where("email", "==", email), orderBy("createdAt", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.()?.toISOString() || d.data().createdAt || "",
+    })));
+  }, (error) => {
+    console.error("Notifications subscription error:", error);
+    callback([]);
+  });
+};
+
+export const markNotificationAsRead = async (notificationId) => {
+  if (!notificationId) return;
+  try {
+    await updateDoc(doc(db, "notifications", notificationId), { read: true });
+  } catch (err) {
+    console.error("Failed to mark notification read:", err);
+  }
+};
+
+export const markAllNotificationsAsRead = async (notifications = []) => {
+  const unread = notifications.filter((n) => !n.read && n.id);
+  if (unread.length === 0) return;
+  try {
+    const batch = writeBatch(db);
+    unread.forEach((item) => {
+      batch.update(doc(db, "notifications", item.id), { read: true });
+    });
+    await batch.commit();
+  } catch (err) {
+    console.error("Failed to mark all notifications read:", err);
+  }
 };
 
 export const getUserOrdersFromFirestore = async (email) => {
@@ -153,19 +241,22 @@ export const updateOrderStatus = async (firestoreDocId, status) => {
     throw new Error("Invalid Firestore document id for order update.");
   }
   const docRef = doc(db, "orders", firestoreDocId);
+  const orderSnapshot = await getDoc(docRef);
+  const existingOrder = orderSnapshot.exists()
+    ? normalizeOrderFromSnapshot({ id: orderSnapshot.id, data: () => orderSnapshot.data() })
+    : null;
+  const normalizedStatus = normalizeStatus(status);
+  const statusChangedAt = new Date();
   const payload = {
-    status,
+    status: normalizedStatus,
+    timeline: advanceTimeline(existingOrder?.timeline || [], normalizedStatus, statusChangedAt),
+    statusHistory: appendStatusHistory(existingOrder?.statusHistory || [], normalizedStatus, "admin", statusChangedAt),
     updatedAt: serverTimestamp(),
   };
 
-  if (String(status).toLowerCase() === "delivered") {
-    const [orderSnapshot, productsSnapshot] = await Promise.all([
-      getDoc(docRef),
-      getDocs(productsCol),
-    ]);
-    const order = orderSnapshot.exists()
-      ? normalizeOrderFromSnapshot({ id: orderSnapshot.id, data: () => orderSnapshot.data() })
-      : { items: [] };
+  if (normalizedStatus === "delivered") {
+    const productsSnapshot = await getDocs(productsCol);
+    const order = existingOrder || { items: [] };
     const products = productsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
     const profitSummary = calculateOrderProfit(order, buildProductsById(products));
 
@@ -186,6 +277,117 @@ export const updateOrderStatus = async (firestoreDocId, status) => {
   }
 
   await updateDoc(docRef, payload);
+  if (existingOrder) {
+    const updatedOrder = { ...existingOrder, ...payload, id: firestoreDocId, updatedAt: statusChangedAt.toISOString() };
+    await Promise.allSettled([
+      queueOrderEmail(updatedOrder, normalizedStatus),
+      createCustomerNotification(updatedOrder, normalizedStatus),
+    ]);
+  }
+};
+
+export const cancelCustomerOrder = async (firestoreDocId) => {
+  return updateOrderStatus(firestoreDocId, "cancelled");
+};
+
+// ===================== PRODUCT REVIEWS =====================
+
+const LOCAL_REVIEWS_KEY = "veltrix_product_reviews";
+
+const getLocalReviews = (productId) => {
+  try {
+    const map = JSON.parse(localStorage.getItem(LOCAL_REVIEWS_KEY) || "{}");
+    return Array.isArray(map[productId]) ? map[productId] : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveLocalReview = (productId, review) => {
+  try {
+    const map = JSON.parse(localStorage.getItem(LOCAL_REVIEWS_KEY) || "{}");
+    const existing = Array.isArray(map[productId]) ? map[productId] : [];
+    map[productId] = [review, ...existing];
+    localStorage.setItem(LOCAL_REVIEWS_KEY, JSON.stringify(map));
+  } catch {
+    // Ignore storage quota errors
+  }
+};
+
+export const subscribeToProductReviews = (productId, callback) => {
+  if (!productId) {
+    callback([]);
+    return () => {};
+  }
+  const q = query(reviewsCol, where("productId", "==", productId));
+  return onSnapshot(q, (snapshot) => {
+    const firestoreReviews = snapshot.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.()?.toISOString() || d.data().createdAt || new Date().toISOString(),
+    }));
+    const localReviews = getLocalReviews(productId);
+    const seenIds = new Set(firestoreReviews.map((r) => r.id));
+    const merged = [...firestoreReviews, ...localReviews.filter((r) => !seenIds.has(r.id))].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    callback(merged);
+  }, () => {
+    callback(getLocalReviews(productId));
+  });
+};
+
+export const addProductReview = async (productId, reviewData) => {
+  const newReview = {
+    productId,
+    userId: reviewData.userId || null,
+    userName: reviewData.userName || "Customer",
+    userPhoto: reviewData.userPhoto || "",
+    rating: Math.min(5, Math.max(1, Number(reviewData.rating) || 5)),
+    comment: String(reviewData.comment || "").trim(),
+    createdAt: new Date().toISOString(),
+  };
+
+  try {
+    const docRef = await addDoc(reviewsCol, {
+      ...newReview,
+      createdAt: serverTimestamp(),
+    });
+    return { id: docRef.id, ...newReview };
+  } catch {
+    const localReview = { id: `local_${Date.now()}`, ...newReview };
+    saveLocalReview(productId, localReview);
+    return localReview;
+  }
+};
+
+// ===================== NEWSLETTER =====================
+
+const LOCAL_SUBSCRIBERS_KEY = "veltrix_newsletter_subscribers";
+
+export const subscribeToNewsletter = async (email) => {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  if (!cleanEmail) throw new Error("Email required");
+
+  try {
+    const existing = JSON.parse(localStorage.getItem(LOCAL_SUBSCRIBERS_KEY) || "[]");
+    if (!existing.includes(cleanEmail)) {
+      localStorage.setItem(LOCAL_SUBSCRIBERS_KEY, JSON.stringify([...existing, cleanEmail]));
+    }
+  } catch {
+    // Ignore storage quota errors
+  }
+
+  try {
+    await setDoc(doc(subscribersCol, cleanEmail.replace(/[^a-z0-9@._-]/g, "_")), {
+      email: cleanEmail,
+      subscribedAt: serverTimestamp(),
+      source: "footer",
+    }, { merge: true });
+  } catch {
+    // Gracefully rely on localStorage fallback if security rules block public subscriber writes
+  }
+  return true;
 };
 
 // ===================== ADMIN =====================
@@ -193,7 +395,6 @@ export const updateOrderStatus = async (firestoreDocId, status) => {
 export const isUserAdmin = async (uid, email) => {
   if (!uid && !email) return false;
   try {
-    // First try by uid if available
     if (uid) {
       const docRef = doc(db, "users", uid);
       const snap = await getDoc(docRef);
@@ -201,15 +402,14 @@ export const isUserAdmin = async (uid, email) => {
         return true;
       }
     }
-    
-    // Fallback: query users collection by email
+
     if (email) {
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("email", "==", email), where("role", "==", "admin"));
       const querySnapshot = await getDocs(q);
       return !querySnapshot.empty;
     }
-    
+
     return false;
   } catch (err) {
     console.error("Admin check error:", err);
@@ -251,8 +451,7 @@ export const updateProductPriceFromOrder = async (productId, orderId, newPrice) 
   if (orderSnap.exists()) {
     const orderData = orderSnap.data();
     const items = typeof orderData.items === "string" ? JSON.parse(orderData.items) : orderData.items || [];
-    
-    // Update the item price in the order items list
+
     const updatedItems = items.map((item) => {
       const itemProductId = item.productId || item.id || (item.product && item.product.id);
       if (itemProductId === productId) {
@@ -265,7 +464,6 @@ export const updateProductPriceFromOrder = async (productId, orderId, newPrice) 
       return item;
     });
 
-    // Recalculate totalPrice
     const newTotalPrice = updatedItems.reduce(
       (sum, item) => sum + (Number(item.price || item.sellPrice || 0) * Number(item.qty || item.quantity || 1)),
       0
@@ -277,7 +475,6 @@ export const updateProductPriceFromOrder = async (productId, orderId, newPrice) 
       updatedAt: serverTimestamp(),
     };
 
-    // If order status is delivered, recalculate profit metrics
     if (String(orderData.status || "").toLowerCase() === "delivered") {
       const productsSnapshot = await getDocs(productsCol);
       const products = productsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));

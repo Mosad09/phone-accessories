@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 function Pagination({
   currentPage,
   totalPages,
@@ -5,9 +7,10 @@ function Pagination({
   onPageChange,
   onPerPageChange,
 }) {
+  const { t } = useTranslation();
+
   if (totalPages <= 1 && perPage === 12) return null;
 
-  // Generate page numbers with ellipsis
   const getPageNumbers = () => {
     const pages = [];
     const maxVisible = 5;
@@ -41,18 +44,17 @@ function Pagination({
   return (
     <div className="pagination-container">
       <div className="pagination-controls">
-        {/* Previous */}
         <button
+          type="button"
           className="pagination-btn pagination-nav"
           disabled={currentPage === 1}
           onClick={() => handlePageChange(currentPage - 1)}
-          aria-label="Previous page"
+          aria-label={t("filters.prev")}
         >
           <i className="bi bi-chevron-left"></i>
-          <span className="pagination-nav-text">Prev</span>
+          <span className="pagination-nav-text">{t("filters.prev")}</span>
         </button>
 
-        {/* Page Numbers */}
         <div className="pagination-numbers">
           {getPageNumbers().map((page, idx) =>
             page === "..." ? (
@@ -61,6 +63,7 @@ function Pagination({
               </span>
             ) : (
               <button
+                type="button"
                 key={page}
                 className={`pagination-btn pagination-num ${
                   currentPage === page ? "active" : ""
@@ -73,23 +76,23 @@ function Pagination({
           )}
         </div>
 
-        {/* Next */}
         <button
+          type="button"
           className="pagination-btn pagination-nav"
           disabled={currentPage === totalPages}
           onClick={() => handlePageChange(currentPage + 1)}
-          aria-label="Next page"
+          aria-label={t("filters.next")}
         >
-          <span className="pagination-nav-text">Next</span>
+          <span className="pagination-nav-text">{t("filters.next")}</span>
           <i className="bi bi-chevron-right"></i>
         </button>
       </div>
 
-      {/* Per Page Selector */}
       <div className="per-page-selector">
-        <span className="per-page-label">Show:</span>
+        <span className="per-page-label">{t("filters.show")}</span>
         {[12, 24, 48].map((n) => (
           <button
+            type="button"
             key={n}
             className={`per-page-btn ${perPage === n ? "active" : ""}`}
             onClick={() => onPerPageChange(n)}

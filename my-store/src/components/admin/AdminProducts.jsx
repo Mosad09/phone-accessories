@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { subscribeToProducts, createProductWithId, updateProduct, deleteProduct, uploadProductImage } from "../../services/firestoreService";
+import {
+  subscribeToProducts,
+  createProductWithId,
+  updateProduct,
+  deleteProduct,
+  uploadProductImage,
+} from "../../services/firestoreService";
+import { hasDiscount } from "../../utils/pricing";
 
 const initialForm = {
   name: "",
@@ -12,17 +19,33 @@ const initialForm = {
   discountPrice: "",
   category: "",
   categoryAr: "",
+  colors: "",
+  sizes: "",
   stock: "100",
   featured: false,
-  image: ""
+  image: "",
 };
+
+function formatArrayInput(val) {
+  if (Array.isArray(val)) return val.join(", ");
+  if (typeof val === "string") return val;
+  return "";
+}
+
+function parseArrayInput(val) {
+  if (Array.isArray(val)) return val;
+  return String(val || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 function AdminProducts() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  
-  // Modal State
+  const [stockFilter, setStockFilter] = useState("all");
+
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -32,7 +55,7 @@ function AdminProducts() {
   const [currentImagePublicId, setCurrentImagePublicId] = useState("");
   const modalRef = useRef(null);
   const previouslyFocusedElementRef = useRef(null);
-  
+
   const [formData, setFormData] = useState(initialForm);
 
   useEffect(() => {
@@ -59,9 +82,11 @@ function AdminProducts() {
         discountPrice: product.discountPrice || "",
         category: product.category || "",
         categoryAr: product.categoryAr || "",
+        colors: formatArrayInput(product.colors),
+        sizes: formatArrayInput(product.sizes),
         stock: product.stock !== undefined ? product.stock : "100",
         featured: product.featured || false,
-        image: product.image || ""
+        image: product.image || "",
       });
     } else {
       setEditingId(null);
@@ -175,7 +200,7 @@ function AdminProducts() {
     setIsSaving(true);
     setUploadError("");
     setUploadProgress(0);
-    
+
     try {
       let imageUrl = formData.image;
       let imageUrls = imageUrl ? [imageUrl] : [];
@@ -186,7 +211,7 @@ function AdminProducts() {
           throw new Error(fileError);
         }
       }
-      
+
       const payload = {
         name: formData.name,
         nameAr: formData.nameAr,
@@ -198,6 +223,8 @@ function AdminProducts() {
         discountPrice: formData.discountPrice ? Number(formData.discountPrice) : null,
         category: formData.category,
         categoryAr: formData.categoryAr,
+        colors: parseArrayInput(formData.colors),
+        sizes: parseArrayInput(formData.sizes),
         stock: Number(formData.stock),
         featured: formData.featured,
       };
@@ -246,7 +273,7 @@ function AdminProducts() {
           imagePublicIds,
         });
       }
-      
+
       handleCloseModal();
     } catch (err) {
       console.error("Failed to save product:", err);
@@ -267,40 +294,60 @@ function AdminProducts() {
     }
   };
 
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = products.filter((p) => {
     const term = searchTerm.toLowerCase();
-    return (
+    const matchesSearch =
       p.name?.toLowerCase().includes(term) ||
       p.nameAr?.toLowerCase().includes(term) ||
       p.category?.toLowerCase().includes(term) ||
-      p.categoryAr?.toLowerCase().includes(term)
-    );
+      p.categoryAr?.toLowerCase().includes(term);
+
+    const stock = Number(p.stock || 0);
+    const matchesStock =
+      stockFilter === "all" ||
+      (stockFilter === "low" && stock > 0 && stock <= 5) ||
+      (stockFilter === "out" && stock <= 0) ||
+      (stockFilter === "sale" && hasDiscount(p));
+
+    return matchesSearch && matchesStock;
   });
 
   if (loading) {
-    return <div className="text-center py-5"><div className="spinner-border text-primary-custom"></div></div>;
+    return (
+      <div className="text-center py-5">
+        <div className="spinner-border text-primary-custom"></div>
+      </div>
+    );
   }
 
   return (
     <div>
       {/* Controls */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-6">
+      <div className="row g-3 mb-4 align-items-center">
+        <div className="col-md-5">
           <div className="input-group">
             <span className="input-group-text bg-white border-end-0">
               <i className="bi bi-search text-muted"></i>
             </span>
-            <input 
-              type="text" 
-              className="form-control border-start-0 ps-0" 
+            <input
+              type="text"
+              className="form-control border-start-0 ps-0"
               placeholder="Search products..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
-        <div className="col-md-6 text-md-end">
-          <button className="btn btn-primary-custom rounded-pill px-4" onClick={() => handleOpenModal()}>
+        <div className="col-md-3">
+          <select className="form-select" value={stockFilter} onChange={(e) => setStockFilter(e.target.value)}>
+            <option value="all">All Inventory ({products.length})</option>
+            <option value="low">Low Stock (1-5)</option>
+            <option value="out">Out of Stock</option>
+            <option value="sale">On Sale</option>
+          </select>
+        </div>
+        <div className="col-md-4 text-md-end">
+          <button type="button" className="btn btn-primary-custom rounded-pill px-4" onClick={() => handleOpenModal()}>
             <i className="bi bi-plus-lg me-2"></i>Add Product
           </button>
         </div>
@@ -314,56 +361,67 @@ function AdminProducts() {
               <th>Product</th>
               <th>Category</th>
               <th>Cost</th>
-              <th>Sell Price</th>
+              <th>Sell / Sale Price</th>
               <th>Stock</th>
               <th>Status</th>
               <th className="text-end">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredProducts.map(product => (
-              <tr key={product.id}>
-                <td>
-                  <div className="d-flex align-items-center">
-                    {product.image ? (
-                      <img src={product.image} alt="" width="48" height="48" className="rounded object-fit-cover me-3 border" />
-                    ) : (
-                      <div className="bg-light rounded me-3 d-flex align-items-center justify-content-center border" style={{width: 48, height: 48}}>
-                        <i className="bi bi-image text-muted"></i>
+            {filteredProducts.map((product) => {
+              const onSale = hasDiscount(product);
+              return (
+                <tr key={product.id}>
+                  <td>
+                    <div className="d-flex align-items-center">
+                      {product.image ? (
+                        <img src={product.image} alt="" width="48" height="48" className="rounded object-fit-cover me-3 border" />
+                      ) : (
+                        <div className="bg-light rounded me-3 d-flex align-items-center justify-content-center border" style={{ width: 48, height: 48 }}>
+                          <i className="bi bi-image text-muted"></i>
+                        </div>
+                      )}
+                      <div>
+                        <div className="fw-medium text-truncate" style={{ maxWidth: "200px" }}>{product.name}</div>
+                        {product.featured && <span className="badge bg-warning text-dark mt-1" style={{ fontSize: "0.65rem" }}>FEATURED</span>}
                       </div>
-                    )}
-                    <div>
-                      <div className="fw-medium text-truncate" style={{maxWidth: "200px"}}>{product.name}</div>
-                      {product.featured && <span className="badge bg-warning text-dark mt-1" style={{fontSize: "0.65rem"}}>FEATURED</span>}
                     </div>
-                  </div>
-                </td>
-                <td><span className="badge bg-light text-dark border px-2 py-1">{product.category}</span></td>
-                <td>
-                  <div className="fw-medium">{Number(product.costPrice || 0).toLocaleString()} EGP</div>
-                </td>
-                <td>
-                  <div className="fw-bold">{Number(product.price).toLocaleString()} EGP</div>
-                  {product.discountPrice && <small className="text-decoration-line-through text-muted">{Number(product.discountPrice).toLocaleString()} EGP</small>}
-                </td>
-                <td>
-                  <span className={`badge ${product.stock > 0 ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle"} rounded-pill`}>
-                    {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
-                  </span>
-                </td>
-                <td>
-                  <span className="badge bg-success rounded-pill">Active</span>
-                </td>
-                <td className="text-end">
-                  <button className="btn btn-sm btn-light me-2" onClick={() => handleOpenModal(product)} title="Edit">
-                    <i className="bi bi-pencil"></i>
-                  </button>
-                  <button className="btn btn-sm btn-light text-danger" onClick={() => handleDelete(product)} title="Delete">
-                    <i className="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td><span className="badge bg-light text-dark border px-2 py-1">{product.category}</span></td>
+                  <td>
+                    <div className="fw-medium">{Number(product.costPrice || 0).toLocaleString()} EGP</div>
+                  </td>
+                  <td>
+                    {onSale ? (
+                      <>
+                        <div className="fw-bold text-success">{Number(product.discountPrice).toLocaleString()} EGP</div>
+                        <small className="text-decoration-line-through text-muted">{Number(product.price).toLocaleString()} EGP</small>
+                      </>
+                    ) : (
+                      <div className="fw-bold">{Number(product.price).toLocaleString()} EGP</div>
+                    )}
+                  </td>
+                  <td>
+                    <span className={`badge ${product.stock > 5 ? "bg-success-subtle text-success border border-success-subtle" : product.stock > 0 ? "bg-warning-subtle text-warning border border-warning-subtle" : "bg-danger-subtle text-danger border border-danger-subtle"} rounded-pill`}>
+                      {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`badge ${product.stock > 0 ? "bg-success" : "bg-secondary"} rounded-pill`}>
+                      {product.stock > 0 ? "Active" : "Empty"}
+                    </span>
+                  </td>
+                  <td className="text-end">
+                    <button type="button" className="btn btn-sm btn-light me-2" onClick={() => handleOpenModal(product)} title="Edit">
+                      <i className="bi bi-pencil"></i>
+                    </button>
+                    <button type="button" className="btn btn-sm btn-light text-danger" onClick={() => handleDelete(product)} title="Delete">
+                      <i className="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
             {filteredProducts.length === 0 && (
               <tr><td colSpan="7" className="text-center py-5 text-muted">No products found.</td></tr>
             )}
@@ -373,7 +431,7 @@ function AdminProducts() {
 
       {/* Add/Edit Modal */}
       {showModal && createPortal(
-        <div className="modal-backdrop-custom d-flex align-items-center justify-content-center position-fixed inset-0" style={{background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)"}}>
+        <div className="modal-backdrop-custom d-flex align-items-center justify-content-center position-fixed inset-0" style={{ background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)" }}>
           <div
             ref={modalRef}
             className="modal-content-custom bg-white rounded-4 shadow-lg w-100 mx-3 d-flex flex-column"
@@ -381,93 +439,100 @@ function AdminProducts() {
             aria-modal="true"
             aria-labelledby="productModalTitle"
             tabIndex="-1"
-            style={{maxWidth: "800px", maxHeight: "90vh", animation: "modalSlideUp 0.3s ease"}}
+            style={{ maxWidth: "800px", maxHeight: "90vh", animation: "modalSlideUp 0.3s ease" }}
           >
-            
             <div className="p-4 border-bottom d-flex justify-content-between align-items-center">
               <h5 id="productModalTitle" className="fw-bold mb-0">{editingId ? "Edit Product" : "Add New Product"}</h5>
-              <button className="btn-close" onClick={handleCloseModal}></button>
+              <button type="button" className="btn-close" onClick={handleCloseModal}></button>
             </div>
-            
+
             <div className="p-4 overflow-auto flex-grow-1">
               <form id="productForm" onSubmit={handleSave}>
                 <div className="row g-4">
-                  
-                  {/* Basic Info */}
                   <div className="col-md-6">
                     <label className="form-label fw-medium">English Product Name *</label>
-                    <input type="text" className="form-control" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} dir="ltr" />
+                    <input type="text" className="form-control" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} dir="ltr" />
                   </div>
 
                   <div className="col-md-6">
                     <label className="form-label fw-medium">Arabic Product Name</label>
-                    <input type="text" className="form-control" value={formData.nameAr} onChange={e => setFormData({...formData, nameAr: e.target.value})} dir="rtl" />
+                    <input type="text" className="form-control" value={formData.nameAr} onChange={(e) => setFormData({ ...formData, nameAr: e.target.value })} dir="rtl" />
                   </div>
-                  
+
                   <div className="col-md-6">
                     <label className="form-label fw-medium">English Category *</label>
-                    <input type="text" className="form-control" required value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} placeholder="e.g. Headphones" dir="ltr" />
+                    <input type="text" className="form-control" required value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} placeholder="e.g. Headphones" dir="ltr" />
                   </div>
 
                   <div className="col-md-6">
                     <label className="form-label fw-medium">Arabic Category</label>
-                    <input type="text" className="form-control" value={formData.categoryAr} onChange={e => setFormData({...formData, categoryAr: e.target.value})} placeholder="e.g. سماعات" dir="rtl" />
-                  </div>
-                  
-                  <div className="col-md-6">
-                    <label className="form-label fw-medium">Stock Quantity *</label>
-                    <input type="number" className="form-control" required min="0" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} />
-                  </div>
-                  
-                  <div className="col-md-6">
-                    <label className="form-label fw-medium">Cost Price (EGP)</label>
-                    <input type="number" className="form-control" min="0" value={formData.costPrice} onChange={e => setFormData({...formData, costPrice: e.target.value})} />
+                    <input type="text" className="form-control" value={formData.categoryAr} onChange={(e) => setFormData({ ...formData, categoryAr: e.target.value })} placeholder="e.g. سماعات" dir="rtl" />
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label fw-medium">Sell Price (EGP) *</label>
-                    <input type="number" className="form-control" required min="0" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+                    <label className="form-label fw-medium">Available Colors (comma-separated)</label>
+                    <input type="text" className="form-control" value={formData.colors} onChange={(e) => setFormData({ ...formData, colors: e.target.value })} placeholder="e.g. Black, Silver, Midnight Blue" />
                   </div>
-                  
+
                   <div className="col-md-6">
-                    <label className="form-label fw-medium">Discount Price (Optional)</label>
-                    <input type="number" className="form-control" min="0" value={formData.discountPrice} onChange={e => setFormData({...formData, discountPrice: e.target.value})} />
+                    <label className="form-label fw-medium">Available Sizes / Models (comma-separated)</label>
+                    <input type="text" className="form-control" value={formData.sizes} onChange={(e) => setFormData({ ...formData, sizes: e.target.value })} placeholder="e.g. 1m, 2m or iPhone 15 Pro" />
+                  </div>
+
+                  <div className="col-md-4">
+                    <label className="form-label fw-medium">Stock Quantity *</label>
+                    <input type="number" className="form-control" required min="0" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} />
+                  </div>
+
+                  <div className="col-md-4">
+                    <label className="form-label fw-medium">Cost Price (EGP)</label>
+                    <input type="number" className="form-control" min="0" value={formData.costPrice} onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })} />
+                  </div>
+
+                  <div className="col-md-4">
+                    <label className="form-label fw-medium">Sell Price (EGP) *</label>
+                    <input type="number" className="form-control" required min="0" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label fw-medium">Sale / Discount Price (Lower than Sell Price)</label>
+                    <input type="number" className="form-control" min="0" value={formData.discountPrice} onChange={(e) => setFormData({ ...formData, discountPrice: e.target.value })} placeholder="Optional offer price" />
                   </div>
 
                   <div className="col-md-6">
                     <label className="form-label fw-medium">Profit per Item</label>
                     <div className="form-control bg-light">
-                      {(Number(formData.price || 0) - Number(formData.costPrice || 0)).toLocaleString()} EGP
+                      {((Number(formData.discountPrice) > 0 && Number(formData.discountPrice) < Number(formData.price) ? Number(formData.discountPrice) : Number(formData.price || 0)) - Number(formData.costPrice || 0)).toLocaleString()} EGP
                     </div>
                   </div>
-                  
+
                   <div className="col-md-6">
                     <label className="form-label fw-medium">English Description</label>
-                    <textarea className="form-control" rows="4" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} dir="ltr"></textarea>
+                    <textarea className="form-control" rows="4" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} dir="ltr"></textarea>
                   </div>
 
                   <div className="col-md-6">
                     <label className="form-label fw-medium">Arabic Description</label>
-                    <textarea className="form-control" rows="4" value={formData.descriptionAr} onChange={e => setFormData({...formData, descriptionAr: e.target.value})} dir="rtl"></textarea>
+                    <textarea className="form-control" rows="4" value={formData.descriptionAr} onChange={(e) => setFormData({ ...formData, descriptionAr: e.target.value })} dir="rtl"></textarea>
                   </div>
-                  
+
                   <div className="col-12">
                     <label className="form-label fw-medium">Product Image</label>
                     <div className="d-flex align-items-center gap-3">
                       {(imageFiles[0] || formData.image) && (
-                        <img 
-                          src={imageFiles[0] ? URL.createObjectURL(imageFiles[0]) : formData.image} 
-                          alt="Preview" 
-                          className="rounded border object-fit-cover" 
-                          style={{width: "80px", height: "80px"}} 
+                        <img
+                          src={imageFiles[0] ? URL.createObjectURL(imageFiles[0]) : formData.image}
+                          alt="Preview"
+                          className="rounded border object-fit-cover"
+                          style={{ width: "80px", height: "80px" }}
                         />
                       )}
-                      <input 
-                        type="file" 
-                        className="form-control" 
-                        accept="image/*" 
+                      <input
+                        type="file"
+                        className="form-control"
+                        accept="image/*"
                         multiple
-                        onChange={e => {
+                        onChange={(e) => {
                           const files = Array.from(e.target.files || []);
                           const validationError = files.map(validateImageFile).find(Boolean) || "";
                           setUploadError(validationError);
@@ -477,7 +542,7 @@ function AdminProducts() {
                           } else {
                             setImageFiles([]);
                           }
-                        }} 
+                        }}
                       />
                     </div>
                     {isSaving && imageFiles.length > 0 && (
@@ -502,25 +567,23 @@ function AdminProducts() {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="col-12">
                     <div className="form-check form-switch mt-2">
-                      <input className="form-check-input" type="checkbox" id="featuredSwitch" checked={formData.featured} onChange={e => setFormData({...formData, featured: e.target.checked})} />
+                      <input className="form-check-input" type="checkbox" id="featuredSwitch" checked={formData.featured} onChange={(e) => setFormData({ ...formData, featured: e.target.checked })} />
                       <label className="form-check-label ms-2" htmlFor="featuredSwitch">Mark as Featured Product</label>
                     </div>
                   </div>
-                  
                 </div>
               </form>
             </div>
-            
+
             <div className="p-4 border-top d-flex justify-content-end gap-3 bg-light rounded-bottom-4">
               <button type="button" className="btn btn-outline-secondary rounded-pill px-4" onClick={handleCloseModal} disabled={isSaving}>Cancel</button>
               <button type="submit" form="productForm" className="btn btn-primary-custom rounded-pill px-4 d-flex align-items-center gap-2" disabled={isSaving}>
                 {isSaving ? <><span className="spinner-border spinner-border-sm"></span> Saving...</> : <><i className="bi bi-check2"></i> Save Product</>}
               </button>
             </div>
-            
           </div>
         </div>,
         document.body

@@ -4,10 +4,15 @@ import { getSuggestions } from "../utils/searchEngine";
 import { loginWithGoogle, logout } from "../utils/firebase";
 import { useTranslation } from "react-i18next";
 import { getLocalizedField } from "../utils/localization";
+import { formatPrice, getEffectivePrice } from "../utils/pricing";
 
 function Navbar({
   cartCount,
   wishlistCount,
+  notifications = [],
+  notificationCount = 0,
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
   search,
   onSearchChange,
   cartPulse,
@@ -33,7 +38,9 @@ function Navbar({
   const userDropdownRef = useRef(null);
   const userMenuButtonRef = useRef(null);
   const userMenuRef = useRef(null);
+  const notifDropdownRef = useRef(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [userMenuPosition, setUserMenuPosition] = useState({ top: 0, left: 12 });
 
   const activeRoute = (() => {
@@ -101,9 +108,27 @@ function Navbar({
       if (!clickedToggle && !clickedMenu) {
         setShowUserMenu(false);
       }
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    const handleSlashShortcut = (e) => {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || target?.isContentEditable) {
+        return;
+      }
+      e.preventDefault();
+      inputRef.current?.focus();
+    };
+    document.addEventListener("keydown", handleSlashShortcut);
+    return () => document.removeEventListener("keydown", handleSlashShortcut);
   }, []);
 
   useEffect(() => {
@@ -123,17 +148,17 @@ function Navbar({
   }, [showUserMenu, updateUserMenuPosition]);
 
   useEffect(() => {
-    if (!showUserMenu) return undefined;
+    if (!showUserMenu && !showNotifications) return undefined;
 
     const handleEscape = (event) => {
       if (event.key !== "Escape") return;
       setShowUserMenu(false);
-      userMenuButtonRef.current?.focus();
+      setShowNotifications(false);
     };
 
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [showUserMenu]);
+  }, [showUserMenu, showNotifications]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -173,6 +198,15 @@ function Navbar({
     [onSearchChange, products]
   );
 
+  const selectSuggestion = (suggestion) => {
+    const name = getLocalizedField(suggestion.product, "name") || suggestion.product.name || "";
+    setInputValue(name);
+    onSearchChange(name);
+    setShowSuggestions(false);
+    setActiveIndex(-1);
+    inputRef.current?.blur();
+  };
+
   const handleKeyDown = (e) => {
     if (!showSuggestions) {
       if (e.key === "Enter") {
@@ -210,15 +244,6 @@ function Navbar({
       default:
         break;
     }
-  };
-
-  const selectSuggestion = (suggestion) => {
-    const name = getLocalizedField(suggestion.product, "name") || suggestion.product.name || "";
-    setInputValue(name);
-    onSearchChange(name);
-    setShowSuggestions(false);
-    setActiveIndex(-1);
-    inputRef.current?.blur();
   };
 
   const clearSearch = () => {
@@ -281,7 +306,7 @@ function Navbar({
             type="button"
             ref={userMenuButtonRef}
             className="btn btn-outline-primary-custom auth-button d-flex align-items-center gap-2 rounded-pill px-3"
-            aria-label="Open account menu"
+            aria-label={t("navbar.account_menu")}
             aria-haspopup="menu"
             aria-expanded={showUserMenu}
             onClick={() => {
@@ -303,7 +328,7 @@ function Navbar({
                 ref={setUserMenuNode}
                 className="navbar-user-menu"
                 role="menu"
-                aria-label="Account menu"
+                aria-label={t("navbar.account_menu")}
                 style={{
                   top: `${userMenuPosition.top}px`,
                   left: `${userMenuPosition.left}px`,
@@ -385,7 +410,7 @@ function Navbar({
         type="button"
         className="btn btn-primary-custom auth-button rounded-pill px-4 d-flex align-items-center gap-2"
         onClick={loginWithGoogle}
-        aria-label="Sign in with Google"
+        aria-label={t("navbar.sign_in")}
       >
         <i className="bi bi-google" aria-hidden="true"></i>
         <span className="d-none d-md-inline">{t("navbar.sign_in")}</span>
@@ -401,7 +426,7 @@ function Navbar({
         type="search"
         className="search-input search-input-enhanced"
         placeholder={t("navbar.search_placeholder")}
-        aria-label="Search products and categories"
+        aria-label={t("navbar.search_placeholder")}
         aria-expanded={showSuggestions}
         aria-controls="product-search-suggestions"
         autoComplete="off"
@@ -413,7 +438,7 @@ function Navbar({
         onKeyDown={handleKeyDown}
       />
       {inputValue && (
-        <button type="button" className="search-clear-btn" onClick={clearSearch} aria-label="Clear search">
+        <button type="button" className="search-clear-btn" onClick={clearSearch} aria-label={t("navbar.clear_search")}>
           <i className="bi bi-x" aria-hidden="true"></i>
         </button>
       )}
@@ -452,7 +477,7 @@ function Navbar({
                 )}
               </div>
               <span className="suggestion-price">
-                {t("navbar.currency")} {Number(item.product.price).toLocaleString(i18n.language === "ar" ? "ar-EG" : "en-EG")}
+                {t("navbar.currency")} {formatPrice(getEffectivePrice(item.product), i18n.language)}
               </span>
             </button>
           ))}
@@ -464,7 +489,6 @@ function Navbar({
   return (
     <nav className="navbar navbar-custom py-3" aria-label="Primary navigation">
       <div className="container navbar-shell">
-        {/* Row 1 — Brand + primary actions */}
         <div className="navbar-header-row">
           <a
             className="navbar-brand d-flex align-items-center fw-bold fs-4"
@@ -474,7 +498,9 @@ function Navbar({
               navigate("home");
             }}
           >
-            <i className="bi bi-layers-fill text-primary-custom me-2"></i>
+            <span className="brand-logo-mark me-2" aria-hidden="true">
+              <i className="bi bi-layers-fill"></i>
+            </span>
             <span className="navbar-brand-name">
               {t("navbar.brand_vel")}
               <span className="text-primary-custom">{t("navbar.brand_trix")}</span>
@@ -500,7 +526,7 @@ function Navbar({
               type="button"
               className="cart-btn-nav"
               onClick={() => navigate("wishlist")}
-              aria-label={`Wishlist with ${wishlistCount} items`}
+              aria-label={`${t("navbar.wishlist")} (${wishlistCount})`}
             >
               <i className="bi bi-heart fs-5" aria-hidden="true"></i>
               {wishlistCount > 0 && (
@@ -508,11 +534,88 @@ function Navbar({
               )}
             </button>
 
+            <div className="position-relative" ref={notifDropdownRef}>
+              <button
+                type="button"
+                className="cart-btn-nav notification-bell-btn"
+                onClick={() => setShowNotifications((prev) => !prev)}
+                aria-label={t("notifications.open")}
+                aria-expanded={showNotifications}
+              >
+                <i className="bi bi-bell fs-5" aria-hidden="true"></i>
+                {notificationCount > 0 && (
+                  <span className="cart-badge notification-badge">{notificationCount}</span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="notification-popover" role="dialog" aria-label={t("notifications.title")}>
+                  <div className="notification-popover-header">
+                    <span className="fw-bold">{t("notifications.title")}</span>
+                    {notificationCount > 0 && onMarkAllNotificationsRead && (
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm p-0 text-primary-custom text-decoration-none fw-semibold"
+                        onClick={() => onMarkAllNotificationsRead()}
+                      >
+                        {t("notifications.mark_all_read")}
+                      </button>
+                    )}
+                  </div>
+                  <div className="notification-popover-body">
+                    {!user ? (
+                      <div className="notification-empty">
+                        <i className="bi bi-person-lock fs-4 d-block mb-1"></i>
+                        <span>{t("notifications.sign_in_prompt")}</span>
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="notification-empty">
+                        <i className="bi bi-bell-slash fs-4 d-block mb-1"></i>
+                        <span>{t("notifications.empty")}</span>
+                      </div>
+                    ) : (
+                      notifications.slice(0, 6).map((notif) => (
+                        <button
+                          key={notif.id}
+                          type="button"
+                          className={`notification-item ${!notif.read ? "unread" : ""}`}
+                          onClick={() => {
+                            if (!notif.read && onMarkNotificationRead) {
+                              onMarkNotificationRead(notif.id);
+                            }
+                            setShowNotifications(false);
+                            navigate("orders");
+                          }}
+                        >
+                          <div className="notification-item-top">
+                            <strong className="small">{notif.title}</strong>
+                            {!notif.read && <span className="notification-unread-dot"></span>}
+                          </div>
+                          <div className="text-muted-custom small">{notif.message}</div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="notification-popover-footer"
+                    onClick={() => {
+                      setShowNotifications(false);
+                      navigate("orders");
+                    }}
+                  >
+                    {t("notifications.view_orders")}
+                    <i className="bi bi-arrow-right ms-1"></i>
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
               className="cart-btn-nav"
               onClick={() => navigate("cart")}
-              aria-label={`Cart with ${cartCount} items`}
+              aria-label={`${t("navbar.cart")} (${cartCount})`}
             >
               <i className="bi bi-bag fs-5" aria-hidden="true"></i>
               {cartCount > 0 && (
@@ -524,7 +627,6 @@ function Navbar({
           </div>
         </div>
 
-        {/* Row 2 — Utility bar (mobile) */}
         {isMobile && (
           <div className="navbar-utility-bar">
             {activeRoute === "home" && (
@@ -532,7 +634,7 @@ function Navbar({
                 type="button"
                 className="navbar-utility-pill"
                 onClick={onToggleFilters}
-                aria-label="Open filters"
+                aria-label={t("navbar.filters")}
               >
                 <i className="bi bi-funnel" aria-hidden="true"></i>
                 <span className="navbar-utility-pill-text">{t("navbar.filters")}</span>
@@ -543,7 +645,6 @@ function Navbar({
           </div>
         )}
 
-        {/* Row 3 — Search */}
         <div className="search-wrapper navbar-search navbar-search-row" ref={wrapperRef}>
           {renderSearchField()}
         </div>

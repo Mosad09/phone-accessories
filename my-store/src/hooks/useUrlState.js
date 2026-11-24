@@ -2,11 +2,6 @@ import { useState, useCallback, useEffect } from "react";
 
 /**
  * Custom hook to sync filter state with URL query parameters.
- * 
- * Reads from URL on mount, writes to URL on every change (no page reload).
- * 
- * URL format example:
- *   ?category=headphone,cable&min=50&max=300&search=sony&sort=price-asc&page=2&perPage=24
  */
 
 const DEFAULTS = {
@@ -15,6 +10,8 @@ const DEFAULTS = {
   maxPrice: Infinity,
   search: "",
   sort: "default",
+  inStockOnly: false,
+  onSaleOnly: false,
   page: 1,
   perPage: 12,
 };
@@ -30,10 +27,22 @@ function parseUrl() {
   const maxPrice = params.has("max") ? Number(params.get("max")) : DEFAULTS.maxPrice;
   const search = params.get("search") || DEFAULTS.search;
   const sort = params.get("sort") || DEFAULTS.sort;
+  const inStockOnly = params.get("inStock") === "1";
+  const onSaleOnly = params.get("sale") === "1";
   const page = params.has("page") ? Math.max(1, Number(params.get("page"))) : DEFAULTS.page;
   const perPage = params.has("perPage") ? Number(params.get("perPage")) : DEFAULTS.perPage;
 
-  return { categories, minPrice, maxPrice, search, sort, page, perPage };
+  return {
+    categories,
+    minPrice,
+    maxPrice,
+    search,
+    sort,
+    inStockOnly,
+    onSaleOnly,
+    page,
+    perPage,
+  };
 }
 
 function writeUrl(state) {
@@ -54,6 +63,12 @@ function writeUrl(state) {
   if (state.sort && state.sort !== "default") {
     params.set("sort", state.sort);
   }
+  if (state.inStockOnly) {
+    params.set("inStock", "1");
+  }
+  if (state.onSaleOnly) {
+    params.set("sale", "1");
+  }
   if (state.page > 1) {
     params.set("page", String(state.page));
   }
@@ -70,26 +85,19 @@ function writeUrl(state) {
 export default function useUrlState() {
   const [filters, setFilters] = useState(() => parseUrl());
 
-  // Sync to URL whenever filters change
   useEffect(() => {
     writeUrl(filters);
   }, [filters]);
 
-  /**
-   * Merge partial updates into current filters.
-   * Automatically resets page to 1 if filter criteria change (not page/perPage).
-   */
   const updateFilters = useCallback((updates) => {
-    setFilters(prev => {
+    setFilters((prev) => {
       const next = { ...prev, ...updates };
 
-      // Reset to page 1 when changing filter criteria (not page navigation itself)
       const isPageChange = "page" in updates;
       const isPerPageChange = "perPage" in updates;
       if (!isPageChange && !isPerPageChange) {
         next.page = 1;
       }
-      // If changing perPage, also reset page
       if (isPerPageChange) {
         next.page = 1;
       }

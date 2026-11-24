@@ -1,6 +1,8 @@
 import { useState, useEffect, Fragment } from "react";
+import Papa from "papaparse";
 import { subscribeToOrders, updateOrderStatus, subscribeToProducts, updateProductPriceFromOrder } from "../../services/firestoreService";
 import { buildProductsById, calculateOrderProfit } from "../../utils/profitAnalytics";
+import { ORDER_STATUSES, ORDER_STATUS_META, getStatusLabel, normalizeStatus } from "../../services/orderLifecycle";
 
 function AdminOrders() {
   const [orders, setOrders] = useState([]);
@@ -10,8 +12,8 @@ function AdminOrders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
-  const [editingItem, setEditingItem] = useState(null); // { orderId, productId, tempPrice }
-  const [savingItem, setSavingItem] = useState(null); // { orderId, productId }
+  const [editingItem, setEditingItem] = useState(null);
+  const [savingItem, setSavingItem] = useState(null);
   const [validationError, setValidationError] = useState("");
 
   useEffect(() => {
@@ -67,7 +69,7 @@ function AdminOrders() {
       filterStatus === "all" ||
       order.status === filterStatus ||
       (filterStatus === "processing" &&
-        (order.status === "processing" || order.status === "confirmed"));
+        (order.status === "processing" || order.status === "confirmed" || order.status === "preparing"));
 
     const searchLower = searchTerm.toLowerCase();
     const disp = (order.displayOrderId || order.orderId || "").toLowerCase();
@@ -81,6 +83,34 @@ function AdminOrders() {
     return matchStatus && matchSearch;
   });
 
+  const handleExportCsv = () => {
+    const rows = filteredOrders.map((order) => {
+      const profit = calculateOrderProfit(order, productsById);
+      return {
+        OrderID: order.trackingNumber || order.displayOrderId || order.orderId || order.id,
+        Date: new Date(order.createdAt).toISOString(),
+        Customer: order.customerName || "",
+        Phone: order.phone || "",
+        Email: order.email || "",
+        Address: order.address || "",
+        PaymentMethod: order.paymentMethod || "Cash on Delivery",
+        CouponCode: order.couponCode || "",
+        TotalEGP: Number(order.totalPrice || 0),
+        CostEGP: profit.cost,
+        ProfitEGP: profit.profit,
+        Status: normalizeStatus(order.status),
+      };
+    });
+    const csv = Papa.unparse(rows);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `veltrix-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="text-center py-5">
@@ -91,8 +121,8 @@ function AdminOrders() {
 
   return (
     <div>
-      <div className="row g-3 mb-4">
-        <div className="col-md-6">
+      <div className="row g-3 mb-4 align-items-center">
+        <div className="col-md-5">
           <div className="input-group">
             <span className="input-group-text bg-white border-end-0">
               <i className="bi bi-search text-muted"></i>
@@ -110,14 +140,25 @@ function AdminOrders() {
           <select className="form-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="all">All Statuses</option>
             <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="preparing">Preparing</option>
             <option value="shipped">Shipped</option>
+            <option value="out_for_delivery">Out for Delivery</option>
             <option value="delivered">Delivered</option>
             <option value="cancelled">Cancelled</option>
+            <option value="returned">Returned</option>
           </select>
         </div>
-        <div className="col-md-3 text-end">
-          <span className="badge bg-light text-dark border p-2 w-100 fs-6">Total Orders: {filteredOrders.length}</span>
+        <div className="col-md-4 d-flex gap-2 justify-content-md-end align-items-center">
+          <span className="badge bg-light text-dark border p-2 fs-6">Orders: {filteredOrders.length}</span>
+          <button
+            type="button"
+            className="btn btn-outline-primary-custom btn-sm rounded-pill px-3"
+            onClick={handleExportCsv}
+            disabled={filteredOrders.length === 0}
+          >
+            <i className="bi bi-download me-1"></i> Export CSV
+          </button>
         </div>
       </div>
 
@@ -146,20 +187,26 @@ function AdminOrders() {
                   typeof order.items === "string" ? JSON.parse(order.items || "[]") : order.items || [];
                 const orderProfit = calculateOrderProfit(order, productsById);
 
-                const st = (order.status || "pending").toLowerCase();
+                const st = normalizeStatus(order.status);
+                const statusMeta = ORDER_STATUS_META[st] || ORDER_STATUS_META.pending;
                 let badgeClass = "bg-secondary";
-                if (st === "pending") badgeClass = "bg-warning text-dark";
-                if (st === "processing" || st === "confirmed") badgeClass = "bg-info text-dark";
-                if (st === "shipped") badgeClass = "bg-primary";
-                if (st === "delivered") badgeClass = "bg-success";
-                if (st === "cancelled") badgeClass = "bg-danger";
+                if (statusMeta.color === "warning") badgeClass = "bg-warning text-dark";
+                if (statusMeta.color === "info") badgeClass = "bg-info text-dark";
+                if (statusMeta.color === "primary") badgeClass = "bg-primary";
+                if (statusMeta.color === "success") badgeClass = "bg-success";
+                if (statusMeta.color === "danger") badgeClass = "bg-danger";
 
-                const statusSelectValue = st === "confirmed" ? "processing" : st || "pending";
+                const statusSelectValue = st || "pending";
 
                 return (
                   <Fragment key={order.id}>
                     <tr>
-                      <td className="fw-medium">{order.displayOrderId || order.orderId || order.id}</td>
+                      <td className="fw-medium">
+                        {order.trackingNumber || order.displayOrderId || order.orderId || order.id}
+                        {order.displayOrderId && order.trackingNumber && (
+                          <small className="d-block text-muted">{order.displayOrderId}</small>
+                        )}
+                      </td>
                       <td>
                         {new Date(order.createdAt).toLocaleDateString()}
                         <small className="d-block text-muted">
@@ -208,25 +255,16 @@ function AdminOrders() {
                           onChange={(e) => handleStatusChange(order.id, e.target.value)}
                           disabled={updatingId === order.id}
                         >
-                          <option value="pending" className="bg-white text-dark">
-                            Pending
-                          </option>
-                          <option value="processing" className="bg-white text-dark">
-                            Processing
-                          </option>
-                          <option value="shipped" className="bg-white text-dark">
-                            Shipped
-                          </option>
-                          <option value="delivered" className="bg-white text-dark">
-                            Delivered
-                          </option>
-                          <option value="cancelled" className="bg-white text-dark">
-                            Cancelled
-                          </option>
+                          {ORDER_STATUSES.map((statusOption) => (
+                            <option key={statusOption} value={statusOption} className="bg-white text-dark">
+                              {getStatusLabel(statusOption, "en")}
+                            </option>
+                          ))}
                         </select>
                       </td>
                       <td>
                         <button
+                          type="button"
                           className="btn btn-sm btn-light rounded-pill px-3"
                           onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
                         >
@@ -242,18 +280,15 @@ function AdminOrders() {
                             <div className="row">
                               <div className="col-md-6 mb-3 mb-md-0 border-end">
                                 <h6 className="fw-bold mb-3 text-primary-custom">Customer Information</h6>
-                                <p className="mb-1">
-                                  <strong>Name:</strong> {order.customerName}
-                                </p>
-                                <p className="mb-1">
-                                  <strong>Phone:</strong> {order.phone}
-                                </p>
-                                <p className="mb-1">
-                                  <strong>Email:</strong> {order.email || "N/A"}
-                                </p>
-                                <p className="mb-0">
-                                  <strong>Address:</strong> {order.address}
-                                </p>
+                                <p className="mb-1"><strong>Name:</strong> {order.customerName}</p>
+                                <p className="mb-1"><strong>Phone:</strong> {order.phone}</p>
+                                <p className="mb-1"><strong>Email:</strong> {order.email || "N/A"}</p>
+                                <p className="mb-1"><strong>Address:</strong> {order.address}</p>
+                                <p className="mb-1"><strong>Payment:</strong> {order.paymentMethod || "Cash on Delivery"}</p>
+                                {order.couponCode && (
+                                  <p className="mb-1"><strong>Coupon:</strong> {order.couponCode} (-{order.couponDiscount || 0} EGP)</p>
+                                )}
+                                {order.notes && <p className="mb-0"><strong>Notes:</strong> {order.notes}</p>}
                               </div>
                               <div className="col-md-6">
                                 <h6 className="fw-bold mb-3 text-primary-custom">Order Items</h6>
@@ -267,7 +302,7 @@ function AdminOrders() {
                                     const itemRevenue = sellPrice * qty;
                                     const itemCost = costPrice * qty;
                                     const itemProfit = itemRevenue - itemCost;
-                                    
+
                                     const isEditing = editingItem && editingItem.orderId === order.id && editingItem.productId === itemProductId;
                                     const isSavingItem = savingItem && savingItem.orderId === order.id && savingItem.productId === itemProductId;
 
@@ -289,6 +324,8 @@ function AdminOrders() {
                                           </div>
                                           <div className="text-muted" style={{ fontSize: "0.8rem" }}>
                                             Qty: {qty}
+                                            {item.selectedColor ? ` · ${item.selectedColor}` : ""}
+                                            {item.selectedSize ? ` · ${item.selectedSize}` : ""}
                                           </div>
                                         </div>
                                         <div className="text-end" style={{ minWidth: "180px" }}>
@@ -306,6 +343,7 @@ function AdminOrders() {
                                                   autoFocus
                                                 />
                                                 <button
+                                                  type="button"
                                                   className="btn btn-sm btn-success p-1 d-flex align-items-center justify-content-center"
                                                   style={{ width: "26px", height: "26px" }}
                                                   onClick={() => handleSavePrice(itemProductId, order.id, editingItem.tempPrice)}
@@ -319,6 +357,7 @@ function AdminOrders() {
                                                   )}
                                                 </button>
                                                 <button
+                                                  type="button"
                                                   className="btn btn-sm btn-danger p-1 d-flex align-items-center justify-content-center"
                                                   style={{ width: "26px", height: "26px" }}
                                                   onClick={() => { setEditingItem(null); setValidationError(""); }}
@@ -338,6 +377,7 @@ function AdminOrders() {
                                                 {itemRevenue.toLocaleString()} EGP
                                               </span>
                                               <button
+                                                type="button"
                                                 className="btn btn-link btn-sm p-0 text-muted shadow-none border-0 ms-1"
                                                 onClick={() => setEditingItem({ orderId: order.id, productId: itemProductId, tempPrice: sellPrice })}
                                                 title="Edit Sell Price"
@@ -347,8 +387,7 @@ function AdminOrders() {
                                               </button>
                                             </div>
                                           )}
-                                          
-                                          {/* Cost, Profit per item details */}
+
                                           <div className="text-muted small" style={{ fontSize: "0.75rem", marginTop: "2px" }}>
                                             Unit Price: {sellPrice.toLocaleString()} EGP | Cost: {costPrice.toLocaleString()} EGP
                                           </div>
@@ -358,7 +397,6 @@ function AdminOrders() {
                                             {itemProfit === 0 && <span className="ms-1 fw-bold" style={{ fontSize: "0.7rem" }}>(No margin)</span>}
                                           </div>
 
-                                          {/* Display priceLastUpdated and prior value if available */}
                                           {dbProduct.priceLastUpdated && (
                                             <div className="text-muted opacity-75 mt-1" style={{ fontSize: "0.65rem" }}>
                                               Updated: {new Date(dbProduct.priceLastUpdated).toLocaleDateString()}
@@ -371,6 +409,28 @@ function AdminOrders() {
                                   })}
                                 </ul>
                               </div>
+                              {order.timeline?.length > 0 && (
+                                <div className="col-12 mt-4">
+                                  <h6 className="fw-bold mb-3 text-primary-custom">Tracking Timeline</h6>
+                                  <div className="order-timeline admin-order-timeline">
+                                    {order.timeline.map((step) => (
+                                      <div key={`${order.id}-${step.status}`} className={`order-timeline-step ${step.completed ? "completed" : ""}`}>
+                                        <span className="order-timeline-dot">
+                                          <i className={`bi ${ORDER_STATUS_META[normalizeStatus(step.status)]?.icon || "bi-circle"}`}></i>
+                                        </span>
+                                        <div>
+                                          <span className="fw-semibold">{getStatusLabel(step.status, "en")}</span>
+                                          {step.completedAt && (
+                                            <small className="text-muted d-block">
+                                              {new Date(step.completedAt).toLocaleString()}
+                                            </small>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>

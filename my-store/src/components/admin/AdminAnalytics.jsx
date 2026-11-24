@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import Papa from "papaparse";
 import { subscribeToOrders, subscribeToProducts } from "../../services/firestoreService";
 import {
   buildProductsById,
@@ -262,14 +263,32 @@ function AdminAnalytics() {
     return analytics.byProduct.filter((item) => item.profit <= 0);
   }, [analytics.byProduct]);
 
+  const handleExportReport = () => {
+    const rows = analytics.byProduct.map((item) => ({
+      Product: item.key,
+      QuantitySold: item.quantity,
+      RevenueEGP: item.revenue,
+      CostEGP: item.cost,
+      NetProfitEGP: item.profit,
+    }));
+    const csv = Papa.unparse(rows);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `veltrix-profit-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return <div className="text-center py-5"><div className="spinner-border text-primary-custom"></div></div>;
   }
 
   return (
     <div>
-      <div className="row g-3 mb-4">
-        <div className="col-lg-5">
+      <div className="row g-3 mb-4 align-items-center">
+        <div className="col-lg-4">
           <div className="input-group">
             <span className="input-group-text bg-white border-end-0">
               <i className="bi bi-search text-muted"></i>
@@ -301,6 +320,16 @@ function AdminAnalytics() {
             </div>
           </>
         )}
+        <div className="col-lg-auto ms-auto">
+          <button
+            type="button"
+            className="btn btn-outline-primary-custom btn-sm rounded-pill px-3"
+            onClick={handleExportReport}
+            disabled={analytics.byProduct.length === 0}
+          >
+            <i className="bi bi-download me-1"></i> Export CSV
+          </button>
+        </div>
       </div>
 
       {negativeMarginProducts.length > 0 && (

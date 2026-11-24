@@ -4,11 +4,12 @@
  * - Case-insensitive + trimmed
  * - Partial matching
  * - Arabic synonym mapping
- * - Price-aware search
+ * - Price-aware search (using effective discounted price)
  * - Prioritized results (beginning matches rank higher)
  */
 
 import { getLocalizedField } from "./localization";
+import { getDiscountPercent, getEffectivePrice, hasDiscount } from "./pricing";
 
 // ───── Synonym Map (Arabic → English) ─────
 const SYNONYMS = {
@@ -22,16 +23,15 @@ const SYNONYMS = {
   "جراب": "cover",
   "كفر": "cover",
   "كڤر": "cover",
+  "باور": "power",
+  "ساعة": "watch",
+  "سماعة بلوتوث": "bluetooth",
 };
 
-/**
- * Expand query with synonyms
- */
 function expandQuery(query) {
   const lower = query.toLowerCase().trim();
   const terms = [lower];
 
-  // Check each synonym
   for (const [arabic, english] of Object.entries(SYNONYMS)) {
     if (lower.includes(arabic)) {
       terms.push(english);
@@ -44,9 +44,6 @@ function expandQuery(query) {
   return [...new Set(terms)];
 }
 
-/**
- * Check if query looks like a price number
- */
 function extractPriceFromQuery(query) {
   const trimmed = query.trim();
   const match = trimmed.match(/^(\d+)$/);
@@ -54,10 +51,6 @@ function extractPriceFromQuery(query) {
   return null;
 }
 
-/**
- * Score a product against search terms
- * Higher score = better match
- */
 function scoreProduct(product, terms, priceQuery) {
   let score = 0;
   const name = (product.name || "").toLowerCase();
@@ -66,65 +59,55 @@ function scoreProduct(product, terms, priceQuery) {
   const categoryAr = (product.categoryAr || "").toLowerCase();
   const details = (product.details || product.description || "").toLowerCase();
   const descriptionAr = (product.descriptionAr || "").toLowerCase();
+  const effectivePrice = getEffectivePrice(product);
 
   for (const term of terms) {
     if (!term) continue;
 
-    // Name matches (highest priority)
     if (name.startsWith(term)) {
-      score += 100; // Starts with = highest rank
+      score += 100;
     } else if (name.includes(term)) {
       score += 60;
     }
 
-    // Arabic name matches (same priority as English name)
     if (nameAr.startsWith(term)) {
       score += 100;
     } else if (nameAr.includes(term)) {
       score += 60;
     }
 
-    // Category matches
     if (category.startsWith(term)) {
       score += 50;
     } else if (category.includes(term)) {
       score += 30;
     }
 
-    // Arabic category matches
     if (categoryAr.startsWith(term)) {
       score += 50;
     } else if (categoryAr.includes(term)) {
       score += 30;
     }
 
-    // Details matches
     if (details.includes(term)) {
       score += 20;
     }
 
-    // Arabic description matches
     if (descriptionAr.includes(term)) {
       score += 20;
     }
   }
 
-  // Price-aware: if query is a number, boost products near that price
-  if (priceQuery !== null && product.price) {
-    const priceDiff = Math.abs(product.price - priceQuery);
-    const tolerance = priceQuery * 0.25; // ±25%
+  if (priceQuery !== null && effectivePrice > 0) {
+    const priceDiff = Math.abs(effectivePrice - priceQuery);
+    const tolerance = priceQuery * 0.25;
     if (priceDiff <= tolerance) {
-      score += 40 - (priceDiff / tolerance) * 30; // Closer = higher score
+      score += 40 - (priceDiff / tolerance) * 30;
     }
   }
 
   return score;
 }
 
-/**
- * Search & filter products
- * Returns filtered + scored + sorted results
- */
 export function searchProducts(products, query) {
   if (!query || !query.trim()) return products;
 
@@ -132,20 +115,16 @@ export function searchProducts(products, query) {
   const priceQuery = extractPriceFromQuery(query);
 
   const scored = products
-    .map(product => ({
+    .map((product) => ({
       product,
       score: scoreProduct(product, terms, priceQuery),
     }))
-    .filter(item => item.score > 0)
+    .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score);
 
-  return scored.map(item => item.product);
+  return scored.map((item) => item.product);
 }
 
-/**
- * Check if a single product matches the search query
- * (used for filtering the full product list)
- */
 export function matchesSearch(product, query) {
   if (!query || !query.trim()) return true;
 
@@ -154,10 +133,6 @@ export function matchesSearch(product, query) {
   return scoreProduct(product, terms, priceQuery) > 0;
 }
 
-/**
- * Generate search suggestions
- * Returns top N results with highlighted match info
- */
 export function getSuggestions(products, query, limit = 8) {
   if (!query || query.trim().length < 1) return [];
 
@@ -166,11 +141,11 @@ export function getSuggestions(products, query, limit = 8) {
   const lowerQuery = query.toLowerCase().trim();
 
   const scored = products
-    .map(product => {
-      const score = scoreProduct(product, terms, priceQuery);
-      return { product, score };
-    })
-    .filter(item => item.score > 0)
+    .map((product) => ({
+      product,
+      score: scoreProduct(product, terms, priceQuery),
+    }))
+    .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 
@@ -201,7 +176,7 @@ export function getSuggestions(products, query, limit = 8) {
 }
 
 /**
- * Apply combined filters: categories, price range, search
+ * Apply combined filters: categories, price range, availability, sale, search
  * Then sort results
  */
 export function filterAndSort(products, {
@@ -210,41 +185,53 @@ export function filterAndSort(products, {
   maxPrice = Infinity,
   search = "",
   sort = "default",
+  inStockOnly = false,
+  onSaleOnly = false,
 }) {
   let result = [...products];
 
   // 1. Category filter (multi-select)
   if (categories.length > 0) {
-    result = result.filter(p =>
-      categories.includes(p.category)
-    );
+    result = result.filter((p) => categories.includes(p.category));
   }
 
-  // 2. Price range filter
-  result = result.filter(p =>
-    p.price >= minPrice && p.price <= maxPrice
-  );
+  // 2. Stock / Sale filters
+  if (inStockOnly) {
+    result = result.filter((p) => Number(p.stock) > 0);
+  }
 
-  // 3. Search filter (with smart matching)
+  if (onSaleOnly) {
+    result = result.filter((p) => hasDiscount(p));
+  }
+
+  // 3. Price range filter (uses effective price)
+  result = result.filter((p) => {
+    const effectivePrice = getEffectivePrice(p);
+    return effectivePrice >= minPrice && effectivePrice <= maxPrice;
+  });
+
+  // 4. Search filter
   if (search && search.trim()) {
     result = searchProducts(result, search);
   }
 
-  // 4. Sort
+  // 5. Sort
   switch (sort) {
     case "price-asc":
-      result.sort((a, b) => a.price - b.price);
+      result.sort((a, b) => getEffectivePrice(a) - getEffectivePrice(b));
       break;
     case "price-desc":
-      result.sort((a, b) => b.price - a.price);
+      result.sort((a, b) => getEffectivePrice(b) - getEffectivePrice(a));
       break;
     case "name-asc":
       result.sort((a, b) =>
         getLocalizedField(a, "name").localeCompare(getLocalizedField(b, "name"))
       );
       break;
+    case "discount":
+      result.sort((a, b) => getDiscountPercent(b) - getDiscountPercent(a));
+      break;
     default:
-      // If searching, keep relevance order from searchProducts
       break;
   }
 

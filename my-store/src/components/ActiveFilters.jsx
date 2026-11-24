@@ -1,3 +1,6 @@
+import { useTranslation } from "react-i18next";
+import { formatPrice } from "../utils/pricing";
+
 function ActiveFilters({
   totalResults,
   currentPageResults,
@@ -8,15 +11,19 @@ function ActiveFilters({
   priceRange,
   search,
   sort,
+  inStockOnly,
+  onSaleOnly,
   onRemoveCategory,
   onClearPrice,
   onClearSearch,
   onClearSort,
+  onClearInStock,
+  onClearOnSale,
   onClearAll,
 }) {
+  const { t, i18n } = useTranslation();
   const chips = [];
 
-  // Category chips
   selectedCategories.forEach((cat) => {
     chips.push({
       key: `cat-${cat}`,
@@ -25,9 +32,8 @@ function ActiveFilters({
     });
   });
 
-  // Price chip
   if (minPrice > priceRange[0] || (maxPrice < Infinity && maxPrice < priceRange[1])) {
-    const label = `EGP ${minPrice} – ${maxPrice < Infinity ? maxPrice : priceRange[1]}`;
+    const label = `${t("navbar.currency")} ${formatPrice(minPrice, i18n.language)} – ${formatPrice(maxPrice < Infinity ? maxPrice : priceRange[1], i18n.language)}`;
     chips.push({
       key: "price",
       label,
@@ -35,7 +41,22 @@ function ActiveFilters({
     });
   }
 
-  // Search chip
+  if (inStockOnly && onClearInStock) {
+    chips.push({
+      key: "inStock",
+      label: t("filters.in_stock_only"),
+      onRemove: onClearInStock,
+    });
+  }
+
+  if (onSaleOnly && onClearOnSale) {
+    chips.push({
+      key: "onSale",
+      label: t("filters.on_sale_only"),
+      onRemove: onClearOnSale,
+    });
+  }
+
   if (search) {
     chips.push({
       key: "search",
@@ -44,11 +65,11 @@ function ActiveFilters({
     });
   }
 
-  // Sort chip
   const sortLabels = {
-    "price-asc": "Price: Low → High",
-    "price-desc": "Price: High → Low",
-    "name-asc": "Name: A → Z",
+    "price-asc": t("filters.sort_price_asc"),
+    "price-desc": t("filters.sort_price_desc"),
+    "discount": t("filters.sort_discount"),
+    "name-asc": t("filters.sort_name_asc"),
   };
   if (sort && sort !== "default") {
     chips.push({
@@ -63,10 +84,10 @@ function ActiveFilters({
   return (
     <div className="active-filters-bar">
       <div className="results-count">
-        <span className="results-count-number">{totalResults}</span>
-        {totalResults === 1 ? " product" : " products"} found
+        <span className="results-count-number">{totalResults}</span>{" "}
+        {totalResults === 1 ? t("filters.results_one") : t("filters.results_other")}
         {currentPageResults < totalResults && (
-          <span className="results-showing"> · Showing {currentPageResults}</span>
+          <span className="results-showing"> · {t("filters.showing", { count: currentPageResults })}</span>
         )}
       </div>
 
@@ -76,16 +97,17 @@ function ActiveFilters({
             <span key={chip.key} className="filter-chip">
               {chip.label}
               <button
+                type="button"
                 className="filter-chip-remove"
                 onClick={chip.onRemove}
-                aria-label={`Remove filter: ${chip.label}`}
+                aria-label={`${t("cart.remove")}: ${chip.label}`}
               >
                 <i className="bi bi-x"></i>
               </button>
             </span>
           ))}
-          <button className="clear-all-link" onClick={onClearAll}>
-            Clear All
+          <button type="button" className="clear-all-link" onClick={onClearAll}>
+            {t("filters.clear_all")}
           </button>
         </div>
       )}
